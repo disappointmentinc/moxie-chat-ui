@@ -18,9 +18,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "better-chatbot",
+  title: "Healthrise Velocity",
   description:
-    "Better Chatbot is a chatbot that uses the Tools to answer questions.",
+    "Healthrise Velocity — Healthrise Collateral Retrieval-Augmented Generation Beta v1.",
 };
 
 // const themes = BASE_THEMES.flatMap((t) => [t, `${t}-dark`]);

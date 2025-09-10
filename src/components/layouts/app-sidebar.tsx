@@ -72,7 +72,7 @@ export function AppSidebar({
                   router.refresh();
                 }}
               >
-                <h4 className="font-bold">better-chatbot</h4>
+                <h4 className="font-bold">Healthrise Velocity</h4>
                 <div
                   className="ml-auto block sm:hidden"
                   onClick={(e) => {
@@ -98,6 +98,9 @@ export function AppSidebar({
       </SidebarContent>
       <SidebarFooter className="flex flex-col items-stretch space-y-2">
         <AppSidebarUser session={session} />
+        <div className="text-[10px] leading-snug text-muted-foreground px-3 pt-1">
+          Healthrise Collateral Retrieval-Augmented Generation Beta v1
+        </div>
       </SidebarFooter>
     </Sidebar>
   );

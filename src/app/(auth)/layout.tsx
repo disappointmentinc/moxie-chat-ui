@@ -18,13 +18,16 @@ export default async function AuthLayout({
             <h1 className="text-xl font-semibold flex items-center gap-3 animate-in fade-in duration-1000">
               <Think />
 
-              <span>Chat Bot</span>
+              <span>Healthrise Velocity</span>
             </h1>
             <div className="flex-1" />
             <FlipWords
               words={[t("description")]}
               className=" mb-4 text-muted-foreground"
             />
+            <div className="text-[10px] leading-snug text-muted-foreground mt-2">
+              Healthrise Collateral Retrieval-Augmented Generation Beta v1
+            </div>
           </div>
 
           <div className="w-full lg:w-1/2 p-6">{children}</div>
