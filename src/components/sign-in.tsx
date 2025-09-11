@@ -15,6 +15,7 @@ import {
 import { useObjectState } from "@/hooks/use-object-state";
 
 import { Loader } from "lucide-react";
+import { LottieLoader } from "@/components/ui/lottie-animation";
 import { safe } from "ts-safe";
 import { authClient } from "auth/client";
 import { toast } from "sonner";
@@ -119,7 +120,7 @@ export default function SignIn({
                 disabled={loading}
               >
                 {loading ? (
-                  <Loader className="size-4 animate-spin ml-1" />
+                  <LottieLoader size="xs" variant="01" className="ml-1" />
                 ) : (
                   t("signIn")
                 )}

@@ -5,6 +5,7 @@ import { authClient } from "auth/client";
 import { useMemo } from "react";
 import { FlipWords } from "ui/flip-words";
 import { useTranslations } from "next-intl";
+import { LottieAnimation } from "./ui/lottie-animation";
 
 function getGreetingByTime() {
   const hour = new Date().getHours();
@@ -43,7 +44,17 @@ export const ChatGreeting = () => {
       exit={{ opacity: 0 }}
       transition={{ delay: 0.3 }}
     >
-      <div className="rounded-xl p-6 flex flex-col gap-2 leading-relaxed text-center">
+      <div className="rounded-xl p-6 flex flex-col items-center gap-4 leading-relaxed text-center">
+        <div className="relative">
+          <LottieAnimation
+            animationPath="/animations/marketing/ideas.json"
+            size="lg"
+            loop={true}
+            autoplay={true}
+            speed={0.7}
+            className="opacity-80"
+          />
+        </div>
         <h1 className="text-2xl md:text-3xl">
           {word ? <FlipWords words={[word]} className="text-primary" /> : ""}
         </h1>
