@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import {
   ThemeProvider,
@@ -8,13 +8,15 @@ import {
 import { Toaster } from "ui/sonner";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const aptosSans = Inter({
+  variable: "--font-aptos-sans",
   subsets: ["latin"],
+  display: 'swap',
 });
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
+const aptosMono = JetBrains_Mono({
+  variable: "--font-aptos-mono",
   subsets: ["latin"],
+  display: 'swap',
 });
 
 export const metadata: Metadata = {
@@ -35,7 +37,7 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${aptosSans.variable} ${aptosMono.variable} antialiased`}
       >
         <ThemeProvider
           attribute="class"

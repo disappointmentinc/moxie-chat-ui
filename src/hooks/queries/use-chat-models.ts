@@ -18,9 +18,16 @@ export const useChatModels = () => {
     onSuccess: (data) => {
       const status = appStore.getState();
       if (!status.chatModel) {
-        const firstProvider = data[0].provider;
-        const model = data[0].models[0].name;
-        appStore.setState({ chatModel: { provider: firstProvider, model } });
+        // Prefer OpenAI gpt-5 as default when available
+        const openai = data.find((p) => p.provider === "openai");
+        const gpt5 = openai?.models.find((m) => m.name === "gpt-5");
+        if (openai && gpt5) {
+          appStore.setState({ chatModel: { provider: "openai", model: "gpt-5" } });
+        } else if (data.length && data[0].models.length) {
+          const firstProvider = data[0].provider;
+          const model = data[0].models[0].name;
+          appStore.setState({ chatModel: { provider: firstProvider, model } });
+        }
       }
     },
   });

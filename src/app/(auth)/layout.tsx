@@ -11,7 +11,7 @@ export default async function AuthLayout({
     <main className="relative w-full flex flex-col h-screen">
       <div className="flex-1">
         <div className="flex min-h-screen w-full">
-          <div className="hidden lg:flex lg:w-1/2 bg-muted border-r flex-col p-18 relative">
+          <div className="hidden lg:flex lg:w-1/2 border-r flex-col p-18 relative" style={{backgroundColor: '#0f1d42'}}>
             <div className="absolute inset-0 w-full h-full">
               <BackgroundPaths />
             </div>

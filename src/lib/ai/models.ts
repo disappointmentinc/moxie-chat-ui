@@ -4,7 +4,6 @@ import { createOllama } from "ollama-ai-provider-v2";
 import { openai } from "@ai-sdk/openai";
 import { google } from "@ai-sdk/google";
 import { anthropic } from "@ai-sdk/anthropic";
-import { xai } from "@ai-sdk/xai";
 import { openrouter } from "@openrouter/ai-sdk-provider";
 import { LanguageModel } from "ai";
 import {
@@ -19,13 +18,14 @@ const ollama = createOllama({
 
 const staticModels = {
   openai: {
-    "gpt-4.1": openai("gpt-4.1"),
-    "gpt-4.1-mini": openai("gpt-4.1-mini"),
-    "o4-mini": openai("o4-mini"),
-    o3: openai("o3"),
+    // Ensure GPT-5 appears first for default selection
     "gpt-5": openai("gpt-5"),
     "gpt-5-mini": openai("gpt-5-mini"),
     "gpt-5-nano": openai("gpt-5-nano"),
+    "gpt-4.1": openai("gpt-4.1"),
+    "gpt-4.1-mini": openai("gpt-4.1-mini"),
+    o3: openai("o3"),
+    "o4-mini": openai("o4-mini"),
   },
   google: {
     "gemini-2.5-flash-lite": google("gemini-2.5-flash-lite"),
@@ -37,11 +37,7 @@ const staticModels = {
     "claude-4-opus": anthropic("claude-4-opus-20250514"),
     "claude-3-7-sonnet": anthropic("claude-3-7-sonnet-20250219"),
   },
-  xai: {
-    "grok-4": xai("grok-4"),
-    "grok-3": xai("grok-3"),
-    "grok-3-mini": xai("grok-3-mini"),
-  },
+  // xai Grok models are intentionally filtered out below from selection
   ollama: {
     "gemma3:1b": ollama("gemma3:1b"),
     "gemma3:4b": ollama("gemma3:4b"),
@@ -79,7 +75,21 @@ const {
   unsupportedModels: openaiCompatibleUnsupportedModels,
 } = createOpenAICompatibleModels(openaiCompatibleProviders);
 
-const allModels = { ...openaiCompatibleModels, ...staticModels };
+const allModelsUnfiltered = { ...openaiCompatibleModels, ...staticModels } as const;
+
+// Filter out any Grok/Groq/Grox models and providers from selection and usage
+const isGroxName = (name: string) => /grok|groq|grox/i.test(name);
+const filteredAllModels = Object.fromEntries(
+  Object.entries(allModelsUnfiltered)
+    .filter(([provider]) => !isGroxName(provider) && provider !== "xai")
+    .map(([provider, models]) => {
+      const entries = Object.entries(models).filter(
+        ([modelName]) => !isGroxName(modelName),
+      );
+      return [provider, Object.fromEntries(entries)];
+    })
+    .filter(([, models]) => Object.keys(models).length > 0),
+) as Record<string, Record<string, LanguageModel>>;
 
 const allUnsupportedModels = new Set([
   ...openaiCompatibleUnsupportedModels,
@@ -90,10 +100,11 @@ export const isToolCallUnsupportedModel = (model: LanguageModel) => {
   return allUnsupportedModels.has(model);
 };
 
-const fallbackModel = staticModels.openai["gpt-4.1"];
+// Default to GPT-5
+const fallbackModel = staticModels.openai["gpt-5"];
 
 export const customModelProvider = {
-  modelsInfo: Object.entries(allModels).map(([provider, models]) => ({
+  modelsInfo: Object.entries(filteredAllModels).map(([provider, models]) => ({
     provider,
     models: Object.entries(models).map(([name, model]) => ({
       name,
@@ -102,6 +113,6 @@ export const customModelProvider = {
   })),
   getModel: (model?: ChatModel): LanguageModel => {
     if (!model) return fallbackModel;
-    return allModels[model.provider]?.[model.model] || fallbackModel;
+    return filteredAllModels[model.provider]?.[model.model] || fallbackModel;
   },
 };
