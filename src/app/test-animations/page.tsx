@@ -51,9 +51,9 @@ export default function TestAnimationsPage() {
               </div>
             </div>
 
-            {/* UI Icons */}
+            {/* UI Icons - Original Set */}
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
-              <h3 className="text-white text-lg font-semibold mb-4">UI Icons</h3>
+              <h3 className="text-white text-lg font-semibold mb-4">UI Icons - Status</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <LottieAnimation
@@ -90,6 +90,58 @@ export default function TestAnimationsPage() {
                     autoplay={true}
                   />
                   <p className="text-slate-300 text-xs mt-1">Settings</p>
+                </div>
+              </div>
+            </div>
+
+            {/* UI Icons - New Set */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
+              <h3 className="text-white text-lg font-semibold mb-4">UI Icons - Interactive</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <LottieAnimation
+                    animationPath="/animations/ui-icons/heart.json"
+                    size="sm"
+                    loop={true}
+                    autoplay={true}
+                  />
+                  <p className="text-slate-300 text-xs mt-1">Heart/Like</p>
+                </div>
+                <div>
+                  <LottieAnimation
+                    animationPath="/animations/ui-icons/search.json"
+                    size="sm"
+                    loop={true}
+                    autoplay={true}
+                  />
+                  <p className="text-slate-300 text-xs mt-1">Search</p>
+                </div>
+                <div>
+                  <LottieAnimation
+                    animationPath="/animations/ui-icons/notification-bell.json"
+                    size="sm"
+                    loop={false}
+                    autoplay={true}
+                  />
+                  <p className="text-slate-300 text-xs mt-1">Notifications</p>
+                </div>
+                <div>
+                  <LottieAnimation
+                    animationPath="/animations/ui-icons/menu-hamburger.json"
+                    size="sm"
+                    loop={false}
+                    autoplay={true}
+                  />
+                  <p className="text-slate-300 text-xs mt-1">Menu</p>
+                </div>
+                <div>
+                  <LottieAnimation
+                    animationPath="/animations/ui-icons/user-profile.json"
+                    size="sm"
+                    loop={true}
+                    autoplay={true}
+                  />
+                  <p className="text-slate-300 text-xs mt-1">User Profile</p>
                 </div>
               </div>
             </div>

@@ -103,7 +103,7 @@ export function LottieIcon({
   loop = false,
   autoplay = true,
 }: {
-  icon: "checkmark" | "cancel" | "settings" | "comment" | "alert-triangle" | "alert-circle" | "download" | "upload";
+  icon: "checkmark" | "cancel" | "settings" | "comment" | "alert-triangle" | "alert-circle" | "download" | "upload" | "heart" | "search" | "menu-hamburger" | "notification-bell" | "user-profile" | "microphone";
   className?: string;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   loop?: boolean;
@@ -118,6 +118,12 @@ export function LottieIcon({
     "alert-circle": "/animations/ui-icons/alert-circle.json",
     download: "/animations/ui-icons/download.json",
     upload: "/animations/ui-icons/upload.json",
+    heart: "/animations/ui-icons/heart.json",
+    search: "/animations/ui-icons/search.json",
+    "menu-hamburger": "/animations/ui-icons/menu-hamburger.json",
+    "notification-bell": "/animations/ui-icons/notification-bell.json",
+    "user-profile": "/animations/ui-icons/user-profile.json",
+    "microphone": "/animations/ui-icons/microphone.json",
   };
 
   return (

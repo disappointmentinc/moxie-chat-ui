@@ -4,13 +4,13 @@ import { useSidebar } from "ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "ui/tooltip";
 import { Toggle } from "ui/toggle";
 import {
-  AudioWaveformIcon,
   ChevronDown,
   MessageCircleDashed,
   PanelLeft,
 } from "lucide-react";
 import { Button } from "ui/button";
 import { Separator } from "ui/separator";
+import { LottieIcon } from "@/components/ui/lottie-animation";
 
 import { useEffect, useMemo } from "react";
 import { ThreadDropdown } from "../thread-dropdown";
@@ -82,7 +82,7 @@ export function AppHeader() {
                 }));
               }}
             >
-              <AudioWaveformIcon className="size-4" />
+              <LottieIcon icon="microphone" size="xs" loop={true} autoplay={true} />
             </Button>
           </TooltipTrigger>
           <TooltipContent align="end" side="bottom">

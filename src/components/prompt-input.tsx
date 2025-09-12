@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  AudioWaveformIcon,
   ChevronDown,
   CornerRightUp,
   PlusIcon,
@@ -27,6 +26,7 @@ import { WorkflowSummary } from "app-types/workflow";
 import { Avatar, AvatarFallback, AvatarImage } from "ui/avatar";
 import equal from "lib/equal";
 import { MCPIcon } from "ui/mcp-icon";
+import { LottieIcon } from "@/components/ui/lottie-animation";
 import { DefaultToolName } from "lib/ai/tools";
 import { DefaultToolIcon } from "./default-tool-icon";
 import { OpenAIIcon } from "ui/openai-icon";
@@ -391,7 +391,7 @@ export default function PromptInput({
                         }}
                         className="rounded-full p-2!"
                       >
-                        <AudioWaveformIcon size={16} />
+                        <LottieIcon icon="microphone" size="xs" loop={true} autoplay={true} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>{t("VoiceChat.title")}</TooltipContent>

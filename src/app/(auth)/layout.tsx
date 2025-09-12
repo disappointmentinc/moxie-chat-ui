@@ -25,18 +25,18 @@ export default async function AuthLayout({
                 speed={0.5}
               />
             </div>
-            <h1 className="text-xl font-semibold flex items-center gap-3 animate-in fade-in duration-1000">
+            <h1 className="text-xl font-semibold flex items-center gap-3 animate-in fade-in duration-1000 font-sans">
               <Think />
 
-              <span>Healthrise Velocity</span>
+              <span>Velocity RAG Beta 1.2</span>
             </h1>
             <div className="flex-1" />
             <FlipWords
               words={[t("description")]}
               className=" mb-4 text-muted-foreground"
             />
-            <div className="text-[10px] leading-snug text-muted-foreground mt-2">
-              Healthrise Collateral Retrieval-Augmented Generation Beta v1
+            <div className="text-[10px] leading-snug text-muted-foreground mt-2 font-sans">
+              Velocity RAG Beta 1.2
             </div>
           </div>
 

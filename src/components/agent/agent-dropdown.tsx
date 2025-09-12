@@ -1,6 +1,7 @@
 "use client";
 import { appStore } from "@/app/store";
-import { AudioWaveformIcon, PencilLine } from "lucide-react";
+import { PencilLine } from "lucide-react";
+import { LottieIcon } from "@/components/ui/lottie-animation";
 import { type PropsWithChildren, useState } from "react";
 import { Command, CommandGroup, CommandItem, CommandList } from "ui/command";
 import { Separator } from "ui/separator";
@@ -44,7 +45,7 @@ export function AgentDropdown({ agent, children, side, align }: Props) {
                     }));
                   }}
                 >
-                  <AudioWaveformIcon className="text-foreground" />
+                  <LottieIcon icon="microphone" size="xs" loop={true} autoplay={true} className="text-foreground" />
                   <span>{t("Chat.VoiceChat.title")}</span>
                 </div>
               </CommandItem>
