@@ -13,7 +13,6 @@ import {
   DropdownMenuSubContent,
   DropdownMenuCheckboxItem,
 } from "ui/dropdown-menu";
-import { AvatarFallback, AvatarImage, Avatar } from "ui/avatar";
 import { LottieAvatar } from "@/components/ui/lottie-avatar";
 import { SidebarMenuButton, SidebarMenuItem, SidebarMenu } from "ui/sidebar";
 import {
@@ -129,7 +128,7 @@ export function AppSidebarUser({
               <Command className="size-4 text-foreground" />
               <span>{t("keyboardShortcuts")}</span>
             </DropdownMenuItem>
-            
+
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout} className="cursor-pointer">
               <LogOutIcon className="size-4 text-foreground" />
