@@ -143,10 +143,8 @@
     "vitest": "^3.2.4"
   },
   "lint-staged": {
-    "*.{js,json,mjs,ts,yaml,tsx,css}": [
-      "pnpm format",
-      "pnpm lint:fix"
-    ]
+    "*.{js,json,mjs,ts,tsx,css}": ["pnpm format --", "pnpm lint:fix --"],
+    "*.yaml": []
   },
   "packageManager": "pnpm@10.2.1",
   "engines": {

@@ -28,7 +28,9 @@ export default function TestAnimationsPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {/* Loading Animations */}
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
-              <h3 className="text-white text-lg font-semibold mb-4">Loading Animations</h3>
+              <h3 className="text-white text-lg font-semibold mb-4">
+                Loading Animations
+              </h3>
               <div className="space-y-4">
                 <div>
                   <LottieAnimation
@@ -53,7 +55,9 @@ export default function TestAnimationsPage() {
 
             {/* UI Icons - Original Set */}
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
-              <h3 className="text-white text-lg font-semibold mb-4">UI Icons - Status</h3>
+              <h3 className="text-white text-lg font-semibold mb-4">
+                UI Icons - Status
+              </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <LottieAnimation
@@ -96,7 +100,9 @@ export default function TestAnimationsPage() {
 
             {/* UI Icons - New Set */}
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
-              <h3 className="text-white text-lg font-semibold mb-4">UI Icons - Interactive</h3>
+              <h3 className="text-white text-lg font-semibold mb-4">
+                UI Icons - Interactive
+              </h3>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <LottieAnimation
@@ -148,7 +154,9 @@ export default function TestAnimationsPage() {
 
             {/* Marketing Animations */}
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
-              <h3 className="text-white text-lg font-semibold mb-4">Marketing</h3>
+              <h3 className="text-white text-lg font-semibold mb-4">
+                Marketing
+              </h3>
               <div className="space-y-4">
                 <div>
                   <LottieAnimation
@@ -165,7 +173,9 @@ export default function TestAnimationsPage() {
 
             {/* Data Visualization */}
             <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center md:col-span-2 lg:col-span-3">
-              <h3 className="text-white text-lg font-semibold mb-4">Data Visualization</h3>
+              <h3 className="text-white text-lg font-semibold mb-4">
+                Data Visualization
+              </h3>
               <div className="flex justify-center">
                 <LottieAnimation
                   animationPath="/animations/data-viz/data-viz-dark.json"
@@ -175,21 +185,38 @@ export default function TestAnimationsPage() {
                   speed={0.8}
                 />
               </div>
-              <p className="text-slate-300 text-sm mt-2">Data Visualization (Dark)</p>
+              <p className="text-slate-300 text-sm mt-2">
+                Data Visualization (Dark)
+              </p>
             </div>
           </div>
         )}
 
         <div className="mt-12 text-center">
           <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
-            <h3 className="text-white text-lg font-semibold mb-4">What You Should See:</h3>
+            <h3 className="text-white text-lg font-semibold mb-4">
+              What You Should See:
+            </h3>
             <div className="text-slate-300 text-sm space-y-2 max-w-2xl mx-auto">
-              <p>✅ <strong>Loading animations</strong> - Smooth, abstract loading spinners</p>
-              <p>✅ <strong>UI icons</strong> - Interactive checkmarks, alerts, and settings</p>
-              <p>✅ <strong>Marketing animations</strong> - Creative ideas and growth concepts</p>
-              <p>✅ <strong>Data visualization</strong> - Complex animated charts and graphs</p>
+              <p>
+                ✅ <strong>Loading animations</strong> - Smooth, abstract
+                loading spinners
+              </p>
+              <p>
+                ✅ <strong>UI icons</strong> - Interactive checkmarks, alerts,
+                and settings
+              </p>
+              <p>
+                ✅ <strong>Marketing animations</strong> - Creative ideas and
+                growth concepts
+              </p>
+              <p>
+                ✅ <strong>Data visualization</strong> - Complex animated charts
+                and graphs
+              </p>
               <p className="mt-4 text-blue-300">
-                🎯 <strong>If you don't see animations:</strong> Check browser dev tools console for errors
+                🎯 <strong>If you don&apos;t see animations:</strong> Check
+                browser dev tools console for errors
               </p>
             </div>
           </div>

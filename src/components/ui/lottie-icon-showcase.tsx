@@ -20,33 +20,98 @@ const iconCategories: IconCategory[] = [
     title: "Status & Feedback",
     description: "Icons for user feedback and status indication",
     icons: [
-      { name: "Success", icon: "checkmark", loop: false, description: "Confirmation & success states" },
-      { name: "Error", icon: "cancel", loop: false, description: "Error & cancellation states" },
-      { name: "Warning", icon: "alert-triangle", loop: false, description: "Warning & caution states" },
-      { name: "Info", icon: "alert-circle", loop: false, description: "Information & help states" },
-    ]
+      {
+        name: "Success",
+        icon: "checkmark",
+        loop: false,
+        description: "Confirmation & success states",
+      },
+      {
+        name: "Error",
+        icon: "cancel",
+        loop: false,
+        description: "Error & cancellation states",
+      },
+      {
+        name: "Warning",
+        icon: "alert-triangle",
+        loop: false,
+        description: "Warning & caution states",
+      },
+      {
+        name: "Info",
+        icon: "alert-circle",
+        loop: false,
+        description: "Information & help states",
+      },
+    ],
   },
   {
-    title: "Actions & Navigation", 
+    title: "Actions & Navigation",
     description: "Interactive icons for user actions",
     icons: [
-      { name: "Settings", icon: "settings", loop: true, description: "Configuration & preferences" },
-      { name: "Search", icon: "search", loop: true, description: "Search & discovery" },
-      { name: "Menu", icon: "menu-hamburger", loop: false, description: "Navigation menus" },
-      { name: "Download", icon: "download", loop: false, description: "File downloads" },
-      { name: "Upload", icon: "upload", loop: false, description: "File uploads" },
-    ]
+      {
+        name: "Settings",
+        icon: "settings",
+        loop: true,
+        description: "Configuration & preferences",
+      },
+      {
+        name: "Search",
+        icon: "search",
+        loop: true,
+        description: "Search & discovery",
+      },
+      {
+        name: "Menu",
+        icon: "menu-hamburger",
+        loop: false,
+        description: "Navigation menus",
+      },
+      {
+        name: "Download",
+        icon: "download",
+        loop: false,
+        description: "File downloads",
+      },
+      {
+        name: "Upload",
+        icon: "upload",
+        loop: false,
+        description: "File uploads",
+      },
+    ],
   },
   {
     title: "Social & Engagement",
-    description: "Icons for user interaction and engagement", 
+    description: "Icons for user interaction and engagement",
     icons: [
-      { name: "Heart", icon: "heart", loop: true, description: "Likes & favorites" },
-      { name: "Comments", icon: "comment", loop: false, description: "Comments & discussions" },
-      { name: "Notifications", icon: "notification-bell", loop: false, description: "Alerts & notifications" },
-      { name: "User Profile", icon: "user-profile", loop: true, description: "User avatars & profiles" },
-    ]
-  }
+      {
+        name: "Heart",
+        icon: "heart",
+        loop: true,
+        description: "Likes & favorites",
+      },
+      {
+        name: "Comments",
+        icon: "comment",
+        loop: false,
+        description: "Comments & discussions",
+      },
+      {
+        name: "Notifications",
+        icon: "notification-bell",
+        loop: false,
+        description: "Alerts & notifications",
+      },
+      {
+        name: "User Profile",
+        icon: "user-profile",
+        loop: true,
+        description: "User avatars & profiles",
+      },
+    ],
+  },
 ];
 
 export function LottieIconShowcase() {
@@ -81,13 +146,17 @@ export function LottieIconShowcase() {
       {/* Active Category Display */}
       <Card className="mb-8">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">{iconCategories[activeCategory].title}</CardTitle>
-          <p className="text-muted-foreground">{iconCategories[activeCategory].description}</p>
+          <CardTitle className="text-2xl">
+            {iconCategories[activeCategory].title}
+          </CardTitle>
+          <p className="text-muted-foreground">
+            {iconCategories[activeCategory].description}
+          </p>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {iconCategories[activeCategory].icons.map((iconData, index) => (
-              <div 
+              <div
                 key={index}
                 className="flex flex-col items-center p-4 rounded-lg border hover:bg-muted/50 transition-colors cursor-pointer group"
               >
@@ -104,7 +173,7 @@ export function LottieIconShowcase() {
                   {iconData.description}
                 </p>
                 <code className="text-xs bg-muted px-2 py-1 rounded mt-2">
-                  icon="{iconData.icon}"
+                  icon=&quot;{iconData.icon}&quot;
                 </code>
               </div>
             ))}
@@ -124,7 +193,7 @@ export function LottieIconShowcase() {
 
 // Basic usage
 <LottieIcon 
-  icon="${iconCategories[activeCategory].icons[0]?.icon || 'checkmark'}" 
+  icon="${iconCategories[activeCategory].icons[0]?.icon || "checkmark"}" 
   size="md" 
   loop={${iconCategories[activeCategory].icons[0]?.loop || false}}
   autoplay={true}
@@ -132,7 +201,7 @@ export function LottieIconShowcase() {
 
 // With custom styling
 <LottieIcon 
-  icon="${iconCategories[activeCategory].icons[0]?.icon || 'checkmark'}"
+  icon="${iconCategories[activeCategory].icons[0]?.icon || "checkmark"}"
   size="lg"
   className="text-blue-500"
   loop={false}
@@ -148,12 +217,17 @@ export function LottieIconShowcase() {
         <div className="inline-flex items-center gap-8 bg-muted/50 rounded-lg p-4">
           <div className="text-center">
             <div className="text-2xl font-bold text-primary">
-              {iconCategories.reduce((total, cat) => total + cat.icons.length, 0)}
+              {iconCategories.reduce(
+                (total, cat) => total + cat.icons.length,
+                0,
+              )}
             </div>
             <div className="text-xs text-muted-foreground">Total Icons</div>
           </div>
           <div className="text-center">
-            <div className="text-2xl font-bold text-primary">{iconCategories.length}</div>
+            <div className="text-2xl font-bold text-primary">
+              {iconCategories.length}
+            </div>
             <div className="text-xs text-muted-foreground">Categories</div>
           </div>
           <div className="text-center">
