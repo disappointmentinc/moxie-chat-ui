@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/card";
 import { useObjectState } from "@/hooks/use-object-state";
 
-import { Loader } from "lucide-react";
 import { LottieLoader } from "@/components/ui/lottie-animation";
 import { safe } from "ts-safe";
 import { authClient } from "auth/client";

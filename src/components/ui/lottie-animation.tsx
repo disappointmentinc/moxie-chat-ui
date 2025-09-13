@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import Lottie, { LottieRef } from "lottie-react";
+import Lottie from "lottie-react";
 import { cn } from "lib/utils";
 
 interface LottieAnimationProps {
@@ -16,7 +16,7 @@ interface LottieAnimationProps {
 
 const sizeClasses = {
   xs: "w-6 h-6",
-  sm: "w-8 h-8", 
+  sm: "w-8 h-8",
   md: "w-12 h-12",
   lg: "w-16 h-16",
   xl: "w-24 h-24",
@@ -31,7 +31,7 @@ export function LottieAnimation({
   speed = 1,
   onComplete,
 }: LottieAnimationProps) {
-  const lottieRef = useRef<LottieRef>(null);
+  const lottieRef = useRef<any>(null);
   const [animationData, setAnimationData] = useState(null);
 
   useEffect(() => {
@@ -50,7 +50,7 @@ export function LottieAnimation({
 
   useEffect(() => {
     if (lottieRef.current) {
-      lottieRef.current.setSpeed(speed);
+      lottieRef.current.setSpeed?.(speed);
     }
   }, [speed]);
 
@@ -59,7 +59,15 @@ export function LottieAnimation({
   };
 
   if (!animationData) {
-    return <div className={cn(sizeClasses[size], "animate-pulse bg-muted rounded", className)} />;
+    return (
+      <div
+        className={cn(
+          sizeClasses[size],
+          "animate-pulse bg-muted rounded",
+          className,
+        )}
+      />
+    );
   }
 
   return (
@@ -103,7 +111,21 @@ export function LottieIcon({
   loop = false,
   autoplay = true,
 }: {
-  icon: "checkmark" | "cancel" | "settings" | "comment" | "alert-triangle" | "alert-circle" | "download" | "upload" | "heart" | "search" | "menu-hamburger" | "notification-bell" | "user-profile" | "microphone";
+  icon:
+    | "checkmark"
+    | "cancel"
+    | "settings"
+    | "comment"
+    | "alert-triangle"
+    | "alert-circle"
+    | "download"
+    | "upload"
+    | "heart"
+    | "search"
+    | "menu-hamburger"
+    | "notification-bell"
+    | "user-profile"
+    | "microphone";
   className?: string;
   size?: "xs" | "sm" | "md" | "lg" | "xl";
   loop?: boolean;
@@ -111,7 +133,7 @@ export function LottieIcon({
 }) {
   const iconPaths = {
     checkmark: "/animations/ui-icons/checkmark-circle.json",
-    cancel: "/animations/ui-icons/cancel-circle.json", 
+    cancel: "/animations/ui-icons/cancel-circle.json",
     settings: "/animations/ui-icons/settings-gear.json",
     comment: "/animations/communication/comment.json",
     "alert-triangle": "/animations/ui-icons/alert-triangle.json",
@@ -123,7 +145,7 @@ export function LottieIcon({
     "menu-hamburger": "/animations/ui-icons/menu-hamburger.json",
     "notification-bell": "/animations/ui-icons/notification-bell.json",
     "user-profile": "/animations/ui-icons/user-profile.json",
-    "microphone": "/animations/ui-icons/microphone.json",
+    microphone: "/animations/ui-icons/microphone.json",
   };
 
   return (

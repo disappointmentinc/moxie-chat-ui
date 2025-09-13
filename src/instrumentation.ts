@@ -9,18 +9,24 @@ export async function register() {
           (m) => m.runMigrate,
         );
         await runMigrate();
-      } catch (e) {
-        console.warn("⚠️ Database migration failed - continuing in dev mode:", e.message);
+      } catch (e: any) {
+        console.warn(
+          "⚠️ Database migration failed - continuing in dev mode:",
+          e.message,
+        );
         // Don't exit process in development
       }
-      
+
       try {
         const initMCPManager = await import("./lib/ai/mcp/mcp-manager").then(
           (m) => m.initMCPManager,
         );
         await initMCPManager();
-      } catch (e) {
-        console.warn("⚠️ MCP Manager initialization failed - continuing in dev mode:", e.message);
+      } catch (e: any) {
+        console.warn(
+          "⚠️ MCP Manager initialization failed - continuing in dev mode:",
+          e.message,
+        );
         // Don't exit process in development
       }
     }

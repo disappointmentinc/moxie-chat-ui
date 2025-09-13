@@ -1,11 +1,12 @@
 "use client";
 
-import type * as React from "react";
+import * as React from "react";
 import * as AvatarPrimitive from "@radix-ui/react-avatar";
 import { cn } from "lib/utils";
 import { LottieIcon } from "./lottie-animation";
 
-interface LottieAvatarProps extends React.ComponentProps<typeof AvatarPrimitive.Root> {
+interface LottieAvatarProps
+  extends React.ComponentProps<typeof AvatarPrimitive.Root> {
   src?: string;
   alt?: string;
   fallbackText?: string;
@@ -44,7 +45,11 @@ function LottieAvatar({
         {useLottie ? (
           <LottieIcon
             icon="user-profile"
-            size={className?.includes("size-8") || className?.includes("h-8 w-8") ? "xs" : "sm"}
+            size={
+              className?.includes("size-8") || className?.includes("h-8 w-8")
+                ? "xs"
+                : "sm"
+            }
             loop={true}
             autoplay={true}
             className="opacity-70"
@@ -75,10 +80,7 @@ function EnhancedLottieAvatar({
         onMouseLeave={() => setIsHovered(false)}
         className="inline-block"
       >
-        <LottieAvatar 
-          {...props} 
-          useLottie={isHovered || !props.src}
-        />
+        <LottieAvatar {...props} useLottie={isHovered || !props.src} />
       </div>
     );
   }
