@@ -8,21 +8,41 @@ import {
 import { Toaster } from "ui/sonner";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale } from "next-intl/server";
+import PWAManager from "@/components/pwa-manager";
 const aptosSans = Inter({
   variable: "--font-aptos-sans",
   subsets: ["latin"],
-  display: 'swap',
+  display: "swap",
 });
 const aptosMono = JetBrains_Mono({
   variable: "--font-aptos-mono",
   subsets: ["latin"],
-  display: 'swap',
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "Healthrise Velocity",
-  description:
-    "Healthrise Velocity — Healthrise Collateral Retrieval-Augmented Generation Beta v1.",
+  title: "Velocity RAG Beta 1.2",
+  description: "AI-powered chat interface with advanced features",
+  manifest: "/manifest.json",
+  icons: {
+    icon: [
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+    ],
+    apple: [{ url: "/favicon.png", sizes: "180x180", type: "image/png" }],
+  },
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "Moxie Chat",
+  },
+  viewport:
+    "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#000000" },
+  ],
 };
 
 // const themes = BASE_THEMES.flatMap((t) => [t, `${t}-dark`]);
@@ -48,6 +68,7 @@ export default async function RootLayout({
         >
           <ThemeStyleProvider>
             <NextIntlClientProvider>
+              <PWAManager />
               <div id="root">
                 {children}
                 <Toaster richColors />
