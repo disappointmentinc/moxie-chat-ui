@@ -21,6 +21,7 @@ export const PWAManager = () => {
         e.preventDefault();
         setDeferredPrompt(e);
         setShowInstallPrompt(true);
+        console.log("PWA install prompt detected");
       };
 
       const handleAppInstalled = () => {

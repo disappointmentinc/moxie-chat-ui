@@ -25,6 +25,7 @@ import {
   Sun,
   MoonStar,
   ChevronRight,
+  Smartphone,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { appStore } from "@/app/store";
@@ -34,15 +35,17 @@ import { authClient } from "auth/client";
 import { useTranslations } from "next-intl";
 import useSWR from "swr";
 import { getLocaleAction } from "@/i18n/get-locale";
-import { useCallback } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useThemeStyle } from "@/hooks/use-theme-style";
 import { Session, User } from "better-auth";
+import { toast } from "sonner";
 
 export function AppSidebarUser({
   session,
 }: { session?: { session: Session; user: User } }) {
   const appStoreMutate = appStore((state) => state.mutate);
   const t = useTranslations("Layout");
+  const [canInstallPWA, setCanInstallPWA] = useState(false);
 
   const user = session?.user;
 
@@ -50,6 +53,38 @@ export function AppSidebarUser({
     authClient.signOut().finally(() => {
       window.location.href = "/sign-in";
     });
+  };
+
+  // Check if PWA can be installed
+  useEffect(() => {
+    const checkPWAInstallability = () => {
+      if (typeof window !== "undefined" && (window as any).pwaManager) {
+        setCanInstallPWA((window as any).pwaManager.canInstall);
+      }
+    };
+
+    // Check immediately
+    checkPWAInstallability();
+
+    // Check every second for PWA readiness
+    const interval = setInterval(checkPWAInstallability, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleInstallPWA = async () => {
+    if (typeof window !== "undefined" && (window as any).pwaManager) {
+      try {
+        await (window as any).pwaManager.installApp();
+      } catch (error) {
+        console.error("Failed to install PWA:", error);
+        toast.error("Failed to install app");
+      }
+    } else {
+      toast.info(
+        "Install not available. Visit this site on mobile Chrome/Safari or desktop Chrome/Edge",
+      );
+    }
   };
 
   useSWR(
@@ -132,6 +167,16 @@ export function AppSidebarUser({
               <Command className="size-4 text-foreground" />
               <span>{t("keyboardShortcuts")}</span>
             </DropdownMenuItem>
+
+            {(canInstallPWA || typeof window === "undefined") && (
+              <DropdownMenuItem
+                className="cursor-pointer"
+                onClick={handleInstallPWA}
+              >
+                <Smartphone className="size-4 text-foreground" />
+                <span>Install to Phone</span>
+              </DropdownMenuItem>
+            )}
 
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={logout} className="cursor-pointer">
