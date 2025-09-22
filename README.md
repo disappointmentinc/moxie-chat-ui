@@ -101,7 +101,7 @@ Get a feel for the UX — here's a quick look at what's possible.
 
 ### 🧩 Browser Automation with Playwright MCP
 
-![preview](https://github.com/user-attachments/assets/e4febb04-26d5-45da-a7bb-f7d452d333c2)
+![preview](https://github.coKOPN]Mm/user-attachments/assets/e4febb04-26d5-45da-a7bb-f7d452d333c2)
 
 
 **Example:** Control a web browser using Microsoft's [playwright-mcp](https://github.com/microsoft/playwright-mcp) tool.

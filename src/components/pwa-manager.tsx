@@ -8,11 +8,37 @@ export const PWAManager = () => {
   const [subscription, setSubscription] = useState<PushSubscription | null>(
     null,
   );
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
   useEffect(() => {
     if (typeof window !== "undefined" && "serviceWorker" in navigator) {
       setIsSupported(true);
       registerServiceWorker();
+
+      // Listen for PWA install prompt
+      const handleBeforeInstallPrompt = (e: any) => {
+        e.preventDefault();
+        setDeferredPrompt(e);
+        setShowInstallPrompt(true);
+      };
+
+      const handleAppInstalled = () => {
+        setDeferredPrompt(null);
+        setShowInstallPrompt(false);
+        toast.success("App installed successfully!");
+      };
+
+      window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.addEventListener("appinstalled", handleAppInstalled);
+
+      return () => {
+        window.removeEventListener(
+          "beforeinstallprompt",
+          handleBeforeInstallPrompt,
+        );
+        window.removeEventListener("appinstalled", handleAppInstalled);
+      };
     }
   }, []);
 
@@ -66,12 +92,14 @@ export const PWAManager = () => {
 
       setSubscription(subscription);
 
-      // Send subscription to server (implement this endpoint)
-      // await fetch('/api/subscribe', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(subscription)
-      // });
+      // Send subscription to server
+      await fetch("/api/subscribe", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(subscription),
+      });
+
+      console.log("Push subscription sent to server");
     } catch (error) {
       console.error("Failed to subscribe to notifications:", error);
       toast.error("Failed to subscribe to notifications");
@@ -81,6 +109,13 @@ export const PWAManager = () => {
   const unsubscribeFromNotifications = async () => {
     if (subscription) {
       try {
+        // Notify server about unsubscription
+        await fetch("/api/subscribe", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endpoint: subscription.endpoint }),
+        });
+
         await subscription.unsubscribe();
         setSubscription(null);
         toast.success("Unsubscribed from notifications");
@@ -103,14 +138,46 @@ export const PWAManager = () => {
     }
   };
 
+  const installApp = async () => {
+    if (deferredPrompt) {
+      try {
+        const result = await deferredPrompt.prompt();
+        console.log("PWA install prompt result:", result.outcome);
+
+        if (result.outcome === "accepted") {
+          toast.success("Installing app...");
+        } else {
+          toast.info("App installation cancelled");
+        }
+
+        setDeferredPrompt(null);
+        setShowInstallPrompt(false);
+      } catch (error) {
+        console.error("Error showing install prompt:", error);
+        toast.error("Failed to install app");
+      }
+    } else {
+      toast.info("App install not available or already installed");
+    }
+  };
+
+  const dismissInstallPrompt = () => {
+    setShowInstallPrompt(false);
+    setDeferredPrompt(null);
+  };
+
   // Expose functions globally for easy access
   if (typeof window !== "undefined") {
     (window as any).pwaManager = {
       requestNotificationPermission,
       sendTestNotification,
       unsubscribeFromNotifications,
+      installApp,
+      dismissInstallPrompt,
       isSupported,
       subscription: !!subscription,
+      canInstall: !!deferredPrompt,
+      showInstallPrompt,
     };
   }
 

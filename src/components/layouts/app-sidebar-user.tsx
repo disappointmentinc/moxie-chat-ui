@@ -78,10 +78,12 @@ export function AppSidebarUser({
             >
               <LottieAvatar
                 className="rounded-full size-8 border"
-                src={user?.image || "/pf.png"}
+                src={user?.image || "/profile-avatar.png"}
                 alt={user?.name || ""}
                 fallbackText={user?.name?.slice(0, 1) || ""}
-                useLottie={!user?.image || user?.image === "/pf.png"}
+                useLottie={
+                  !user?.image || user?.image === "/profile-avatar.png"
+                }
               />
               <span className="truncate">{user?.email}</span>
               <ChevronsUpDown className="ml-auto" />
@@ -96,10 +98,12 @@ export function AppSidebarUser({
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <LottieAvatar
                   className="h-8 w-8 rounded-full"
-                  src={user?.image || "/pf.png"}
+                  src={user?.image || "/profile-avatar.png"}
                   alt={user?.name || ""}
                   fallbackText={user?.name?.slice(0, 1) || ""}
-                  useLottie={!user?.image || user?.image === "/pf.png"}
+                  useLottie={
+                    !user?.image || user?.image === "/profile-avatar.png"
+                  }
                 />
                 <div className="grid flex-1 text-left text-sm leading-tight">
                   <span className="truncate font-medium">{user?.name}</span>
