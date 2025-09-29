@@ -1,4 +1,4 @@
-const CACHE_NAME = 'moxie-chat-ui-v1';
+const CACHE_NAME = 'moxie-chat-ui-v2';
 const urlsToCache = [
   '/',
   '/manifest.json',
@@ -6,8 +6,11 @@ const urlsToCache = [
   '/favicon-16x16.png',
   '/favicon-32x32.png',
   '/favicon-96x96.png',
+  '/icon-144.png',
+  '/icon-180.png',
   '/icon-192.png',
   '/icon-512.png',
+  '/icon-512-maskable.png',
   '/offline.html'
 ];
 

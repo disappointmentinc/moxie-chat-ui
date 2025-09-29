@@ -29,8 +29,15 @@ export const metadata: Metadata = {
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+      { url: "/icon-144.png", sizes: "144x144", type: "image/png" },
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
-    apple: [{ url: "/favicon.png", sizes: "180x180", type: "image/png" }],
+    apple: [
+      { url: "/icon-180.png", sizes: "180x180", type: "image/png" },
+      { url: "/icon-144.png", sizes: "144x144", type: "image/png" },
+      { url: "/favicon-96x96.png", sizes: "96x96", type: "image/png" },
+    ],
   },
   appleWebApp: {
     capable: true,
@@ -38,11 +45,21 @@ export const metadata: Metadata = {
     title: "Moxie Chat",
   },
   viewport:
-    "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
+    "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#000000" },
   ],
+  other: {
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "default",
+    "apple-mobile-web-app-title": "Moxie Chat",
+    "format-detection": "telephone=no",
+    "msapplication-TileColor": "#000000",
+    "msapplication-TileImage": "/icon-144.png",
+    "msapplication-tap-highlight": "no",
+  },
 };
 
 // const themes = BASE_THEMES.flatMap((t) => [t, `${t}-dark`]);
