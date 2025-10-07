@@ -62,8 +62,6 @@ export const metadata: Metadata = {
   },
 };
 
-// const themes = BASE_THEMES.flatMap((t) => [t, `${t}-dark`]);
-
 export default async function RootLayout({
   children,
 }: Readonly<{

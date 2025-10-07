@@ -74,6 +74,13 @@
   "Chat": {
     "Error": "Erreur de Chat",
     "thisMessageWasNotSavedPleaseTryTheChatAgain": "Ce message n'a pas été enregistré. Veuillez réessayer le chat.",
+    "uploadImage": "Télécharger une Image",
+    "generateImage": "Générer une Image",
+    "imageUploadedSuccessfully": "Image téléchargée avec succès",
+    "pleaseUploadImageFile": "Veuillez télécharger un fichier image",
+    "imageSizeMustBeLessThan10MB": "La taille de l'image doit être inférieure à 10 Mo",
+    "failedToUploadImage": "Échec du téléchargement de l'image",
+    "imageUploadFailedUsingBase64": "Le téléchargement de l'image a échoué. Utilisation de l'encodage base64 comme solution de secours.",
     "Greeting": {
       "goodMorning": "Bonjour, {name}",
       "goodAfternoon": "Bon après-midi, {name}",
@@ -152,7 +159,12 @@
       "failedToUpdateThread": "Échec de mise à jour du fil",
       "titleRequired": "Le titre est requis",
       "threadUpdated": "Fil mis à jour",
-      "areYouSureYouWantToDeleteThisChatThread": "Êtes-vous sûr de vouloir supprimer ce fil de chat ?"
+      "areYouSureYouWantToDeleteThisChatThread": "Êtes-vous sûr de vouloir supprimer ce fil de chat ?",
+      "sharePublicLink": "Partager le Lien Public",
+      "sharePublicLinkDescription": "Tous les messages ajoutés après le partage resteront privés.",
+      "creatingLink": "Création du lien...",
+      "createLink": "Créer le Lien",
+      "linkCopied": "Lien copié"
     },
 
     "ChatPreferences": {
@@ -447,5 +459,37 @@
     "arrangeNodes": "Auto Layout",
     "nodesArranged": "Layout appliqué avec succès",
     "visibilityUpdated": "Visibilité mise à jour avec succès"
+  },
+  "User": {
+    "Profile": {
+      "common": {
+        "uploadPhoto": "Télécharger une Photo",
+        "chooseDefault": "Choisir par Défaut",
+        "useEmoji": "Utiliser un Emoji",
+        "generateWithAI": "Générer avec l'IA",
+        "changeProfilePhoto": "Changer la Photo de Profil",
+        "selectDefaultAvatar": "Choisir un Avatar par Défaut",
+        "selectDefaultAvatarDescription": "Sélectionnez l'un des avatars par défaut ci-dessous",
+        "chooseEmojiAvatar": "Choisir un Avatar Emoji",
+        "chooseEmojiAvatarDescription": "Sélectionnez un emoji à utiliser comme photo de profil",
+        "generateAvatarWithAI": "Générer un Avatar avec l'IA",
+        "generateAvatarWithAIDescription": "Décrivez votre photo de profil idéale et laissez l'IA la créer",
+        "aiProvider": "Fournisseur d'IA",
+        "describeYourAvatar": "Décrivez votre avatar",
+        "avatarPromptPlaceholder": "ex., Un chiot mignon dans le style Studio Ghibli",
+        "generating": "Génération en cours...",
+        "regenerate": "Régénérer",
+        "useThisAvatar": "Utiliser Cet Avatar",
+        "profilePhotoUpdatedSuccessfully": "Photo de profil mise à jour avec succès",
+        "failedToUpdateProfilePhoto": "Échec de la mise à jour de la photo de profil",
+        "pleaseEnterPrompt": "Veuillez entrer une description",
+        "imageGeneratedSuccessfully": "Image générée avec succès !",
+        "failedToGenerateImage": "Échec de la génération de l'image",
+        "failedToSaveImage": "Échec de l'enregistrement de l'image",
+        "pleaseUploadValidImage": "Veuillez télécharger une image valide (JPEG, PNG ou WebP)",
+        "imageSizeMustBeLessThan": "La taille de l'image doit être inférieure à 5 Mo",
+        "select": "Sélectionner"
+      }
+    }
   }
 }

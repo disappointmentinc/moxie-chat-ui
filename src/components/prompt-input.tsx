@@ -3,16 +3,19 @@
 import {
   ChevronDown,
   CornerRightUp,
+  FileIcon,
+  ImagesIcon,
+  Loader2,
+  PaperclipIcon,
   PlusIcon,
   Square,
   XIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "ui/button";
-import { notImplementedToast } from "ui/shared-toast";
 import { UIMessage, UseChatHelpers } from "@ai-sdk/react";
 import { SelectModel } from "./select-model";
-import { appStore } from "@/app/store";
+import { appStore, UploadedFile } from "@/app/store";
 import { useShallow } from "zustand/shallow";
 import { ChatMention, ChatModel } from "app-types/chat";
 import dynamic from "next/dynamic";
@@ -33,9 +36,24 @@ import { OpenAIIcon } from "ui/openai-icon";
 import { GrokIcon } from "ui/grok-icon";
 import { ClaudeIcon } from "ui/claude-icon";
 import { GeminiIcon } from "ui/gemini-icon";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuPortal,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "ui/dropdown-menu";
+import { useFileUpload } from "@/hooks/use-presigned-upload";
+import { toast } from "sonner";
+import { generateUUID, cn } from "@/lib/utils";
 
 import { EMOJI_DATA } from "lib/const";
 import { AgentSummary } from "app-types/agent";
+import { FileUIPart } from "ai";
+import { useChatModels } from "@/hooks/queries/use-chat-models";
 
 interface PromptInputProps {
   placeholder?: string;
@@ -76,19 +94,51 @@ export default function PromptInput({
   disabledMention,
 }: PromptInputProps) {
   const t = useTranslations("Chat");
+  const [isUploadDropdownOpen, setIsUploadDropdownOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { upload } = useFileUpload();
+  const { data: providers } = useChatModels();
 
-  const [globalModel, threadMentions, appStoreMutate] = appStore(
+  const [
+    globalModel,
+    threadMentions,
+    threadFiles,
+    threadImageToolModel,
+    appStoreMutate,
+  ] = appStore(
     useShallow((state) => [
       state.chatModel,
       state.threadMentions,
+      state.threadFiles,
+      state.threadImageToolModel,
       state.mutate,
     ]),
   );
+
+  const modelInfo = useMemo(() => {
+    const provider = providers?.find(
+      (provider) => provider.provider === globalModel?.provider,
+    );
+    const model = provider?.models.find(
+      (model) => model.name === globalModel?.model,
+    );
+    return model;
+  }, [providers, globalModel]);
 
   const mentions = useMemo<ChatMention[]>(() => {
     if (!threadId) return [];
     return threadMentions[threadId!] ?? [];
   }, [threadMentions, threadId]);
+
+  const uploadedFiles = useMemo<UploadedFile[]>(() => {
+    if (!threadId) return [];
+    return threadFiles[threadId] ?? [];
+  }, [threadFiles, threadId]);
+
+  const imageToolModel = useMemo(() => {
+    if (!threadId) return undefined;
+    return threadImageToolModel[threadId];
+  }, [threadImageToolModel, threadId]);
 
   const chatModel = useMemo(() => {
     return model ?? globalModel;
@@ -121,6 +171,173 @@ export default function PromptInput({
       });
     },
     [mentions, threadId],
+  );
+
+  const deleteFile = useCallback(
+    (fileId: string) => {
+      if (!threadId) return;
+
+      // Find file and abort if uploading
+      const file = uploadedFiles.find((f) => f.id === fileId);
+      if (file?.isUploading && file.abortController) {
+        file.abortController.abort();
+      }
+
+      // Cleanup preview URL if exists
+      if (file?.previewUrl) {
+        URL.revokeObjectURL(file.previewUrl);
+      }
+
+      appStoreMutate((prev) => {
+        const newFiles = uploadedFiles.filter((f) => f.id !== fileId);
+        return {
+          threadFiles: {
+            ...prev.threadFiles,
+            [threadId]: newFiles,
+          },
+        };
+      });
+    },
+    [uploadedFiles, threadId, appStoreMutate],
+  );
+
+  const handleFileSelect = useCallback(
+    async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (!file || !threadId) return;
+
+      // Validate image type
+      if (!file.type.startsWith("image/")) {
+        toast.error(t("pleaseUploadImageFile"));
+        return;
+      }
+
+      // Validate file size (10MB limit)
+      if (file.size > 10 * 1024 * 1024) {
+        toast.error(t("imageSizeMustBeLessThan10MB"));
+        return;
+      }
+
+      // Create preview URL
+      const previewUrl = URL.createObjectURL(file);
+      const fileId = generateUUID();
+      const abortController = new AbortController();
+
+      // Add file with uploading state immediately
+      const uploadingFile: UploadedFile = {
+        id: fileId,
+        url: "",
+        name: file.name,
+        mimeType: file.type,
+        size: file.size,
+        isUploading: true,
+        progress: 0,
+        previewUrl,
+        abortController,
+      };
+
+      appStoreMutate((prev) => ({
+        threadFiles: {
+          ...prev.threadFiles,
+          [threadId]: [...(prev.threadFiles[threadId] ?? []), uploadingFile],
+        },
+      }));
+
+      setIsUploadDropdownOpen(false);
+
+      try {
+        // Upload file
+        const uploadedFile = await upload(file);
+
+        if (uploadedFile) {
+          // Update with final URL
+          appStoreMutate((prev) => ({
+            threadFiles: {
+              ...prev.threadFiles,
+              [threadId]: (prev.threadFiles[threadId] ?? []).map((f) =>
+                f.id === fileId
+                  ? {
+                      ...f,
+                      url: uploadedFile.url,
+                      isUploading: false,
+                      progress: 100,
+                    }
+                  : f,
+              ),
+            },
+          }));
+
+          toast.success(t("imageUploadedSuccessfully"));
+        } else {
+          // Failed to upload - remove the file
+          appStoreMutate((prev) => ({
+            threadFiles: {
+              ...prev.threadFiles,
+              [threadId]: (prev.threadFiles[threadId] ?? []).filter(
+                (f) => f.id !== fileId,
+              ),
+            },
+          }));
+        }
+      } catch (error) {
+        // Upload failed - remove the file
+        if (error instanceof Error && error.name === "AbortError") {
+          // Remove aborted upload
+          appStoreMutate((prev) => ({
+            threadFiles: {
+              ...prev.threadFiles,
+              [threadId]: (prev.threadFiles[threadId] ?? []).filter(
+                (f) => f.id !== fileId,
+              ),
+            },
+          }));
+        } else {
+          // For other errors, remove the file and show error
+          appStoreMutate((prev) => ({
+            threadFiles: {
+              ...prev.threadFiles,
+              [threadId]: (prev.threadFiles[threadId] ?? []).filter(
+                (f) => f.id !== fileId,
+              ),
+            },
+          }));
+        }
+      } finally {
+        // Cleanup preview URL
+        URL.revokeObjectURL(previewUrl);
+      }
+
+      // Reset input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = "";
+      }
+      setIsUploadDropdownOpen(false);
+    },
+    [threadId, upload, appStoreMutate, t],
+  );
+
+  const handleGenerateImage = useCallback(
+    (provider?: "google" | "openai") => {
+      if (!provider) {
+        appStoreMutate({
+          threadImageToolModel: {},
+        });
+      }
+      if (!threadId) return;
+
+      setIsUploadDropdownOpen(false);
+
+      appStoreMutate((prev) => ({
+        threadImageToolModel: {
+          ...prev.threadImageToolModel,
+          [threadId]: provider,
+        },
+      }));
+
+      // Focus on the input
+      editorRef.current?.commands.focus();
+    },
+    [threadId, editorRef],
   );
 
   const addMention = useCallback(
@@ -203,41 +420,54 @@ export default function PromptInput({
     if (isLoading) return;
     const userMessage = input?.trim() || "";
     if (userMessage.length === 0) return;
+
     setInput("");
     sendMessage({
       role: "user",
       parts: [
+        ...uploadedFiles.map(
+          (file) =>
+            ({
+              type: "file",
+              url: file.url || file.dataUrl || "",
+              mediaType: file.mimeType,
+            }) as FileUIPart,
+        ),
         {
           type: "text",
           text: userMessage,
         },
       ],
     });
+    appStoreMutate((prev) => ({
+      threadFiles: {
+        ...prev.threadFiles,
+        [threadId!]: [],
+      },
+    }));
   };
 
   // Handle ESC key to clear mentions
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && mentions.length > 0 && threadId) {
+      if (
+        e.key === "Escape" &&
+        threadId &&
+        (mentions.length > 0 || imageToolModel)
+      ) {
         e.preventDefault();
         e.stopPropagation();
-        appStoreMutate((prev) => ({
-          threadMentions: {
-            ...prev.threadMentions,
-            [threadId]: [],
-          },
+        appStoreMutate(() => ({
+          threadMentions: {},
           agentId: undefined,
+          threadImageToolModel: {},
         }));
         editorRef.current?.commands.focus();
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [mentions.length, threadId, appStoreMutate]);
-
-  useEffect(() => {
-    if (!editorRef.current) return;
-  }, [editorRef.current]);
+  }, [mentions.length, threadId, appStoreMutate, imageToolModel]);
 
   return (
     <div className="max-w-3xl mx-auto fade-in animate-in">
@@ -318,28 +548,94 @@ export default function PromptInput({
                 />
               </div>
               <div className="flex w-full items-center z-30">
-                <Button
-                  variant={"ghost"}
-                  size={"sm"}
-                  className="rounded-full hover:bg-input! p-2!"
-                  onClick={notImplementedToast}
-                >
-                  <PlusIcon />
-                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleFileSelect}
+                  disabled={!threadId}
+                />
 
-                {!toolDisabled && (
-                  <>
-                    <ToolModeDropdown />
-                    <ToolSelectDropdown
-                      className="mx-1"
-                      align="start"
-                      side="top"
-                      onSelectWorkflow={onSelectWorkflow}
-                      onSelectAgent={onSelectAgent}
-                      mentions={mentions}
-                    />
-                  </>
-                )}
+                <DropdownMenu
+                  open={isUploadDropdownOpen}
+                  onOpenChange={setIsUploadDropdownOpen}
+                >
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant={"ghost"}
+                      size={"sm"}
+                      className="rounded-full hover:bg-input! p-2! data-[state=open]:bg-input!"
+                      disabled={!threadId}
+                    >
+                      <PlusIcon />
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="start" side="top">
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      disabled={modelInfo?.isImageInputUnsupported}
+                      onClick={() => fileInputRef.current?.click()}
+                    >
+                      <PaperclipIcon className="mr-2 size-4" />
+                      {t("uploadImage")}
+                    </DropdownMenuItem>
+
+                    <DropdownMenuSub>
+                      <DropdownMenuSubTrigger className="cursor-pointer">
+                        <ImagesIcon className="mr-4 size-4 text-muted-foreground" />
+                        <span className="mr-4">{t("generateImage")}</span>
+                      </DropdownMenuSubTrigger>
+                      <DropdownMenuPortal>
+                        <DropdownMenuSubContent>
+                          <DropdownMenuItem
+                            disabled={modelInfo?.isToolCallUnsupported}
+                            onClick={() => handleGenerateImage("google")}
+                            className="cursor-pointer"
+                          >
+                            <GeminiIcon className="mr-2 size-4" />
+                            Gemini (Nano Banana)
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            disabled={modelInfo?.isToolCallUnsupported}
+                            onClick={() => handleGenerateImage("openai")}
+                            className="cursor-pointer"
+                          >
+                            <OpenAIIcon className="mr-2 size-4" />
+                            OpenAI
+                          </DropdownMenuItem>
+                        </DropdownMenuSubContent>
+                      </DropdownMenuPortal>
+                    </DropdownMenuSub>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+
+                {!toolDisabled &&
+                  (imageToolModel ? (
+                    <Button
+                      variant={"ghost"}
+                      size={"sm"}
+                      className="rounded-full hover:bg-input! p-2! group/image-generator text-primary"
+                      onClick={() => handleGenerateImage()}
+                    >
+                      <ImagesIcon className="size-3.5" />
+                      {t("generateImage")}
+                      <XIcon className="size-3 group-hover/image-generator:opacity-100 opacity-0 transition-opacity duration-200" />
+                    </Button>
+                  ) : (
+                    <>
+                      <ToolModeDropdown />
+                      <ToolSelectDropdown
+                        className="mx-1"
+                        align="start"
+                        side="top"
+                        onSelectWorkflow={onSelectWorkflow}
+                        onSelectAgent={onSelectAgent}
+                        onGenerateImage={handleGenerateImage}
+                        mentions={mentions}
+                      />
+                    </>
+                  ))}
 
                 <div className="flex-1" />
 
@@ -418,6 +714,90 @@ export default function PromptInput({
                   </div>
                 )}
               </div>
+
+              {/* Uploaded Files Preview - Below Input */}
+              {uploadedFiles.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {uploadedFiles.map((file) => {
+                    const isImage = file.mimeType.startsWith("image/");
+                    const fileExtension =
+                      file.name.split(".").pop()?.toUpperCase() || "FILE";
+                    const imageSrc =
+                      file.previewUrl || file.url || file.dataUrl || "";
+
+                    return (
+                      <div
+                        key={file.id}
+                        className="relative group rounded-lg overflow-hidden border-2 border-border hover:border-primary transition-all"
+                      >
+                        {isImage ? (
+                          /* eslint-disable-next-line @next/next/no-img-element */
+                          <img
+                            src={imageSrc}
+                            alt={file.name}
+                            className="w-24 h-24 object-cover"
+                          />
+                        ) : (
+                          <div className="w-24 h-24 flex flex-col items-center justify-center bg-muted">
+                            <FileIcon className="size-8 text-muted-foreground mb-1" />
+                            <span className="text-xs font-medium text-muted-foreground">
+                              {fileExtension}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Upload Progress Overlay */}
+                        {file.isUploading && (
+                          <div className="absolute inset-0 bg-background/90 flex rounded-lg flex-col items-center justify-center backdrop-blur-sm">
+                            <Loader2 className="size-6 animate-spin text-foreground mb-2" />
+                            <div className="w-16 h-1 bg-muted rounded-full overflow-hidden">
+                              <div
+                                className="h-full bg-primary transition-all duration-300"
+                                style={{ width: `${file.progress || 0}%` }}
+                              />
+                            </div>
+                            <span className="text-foreground text-xs mt-1">
+                              {file.progress || 0}%
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Hover Delete Button */}
+                        <div
+                          className={cn(
+                            "absolute inset-0 bg-background/80 backdrop-blur-sm transition-opacity flex items-center justify-center rounded-lg",
+                            file.isUploading
+                              ? "opacity-0"
+                              : "opacity-0 group-hover:opacity-100",
+                          )}
+                        >
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="rounded-full bg-background/80 hover:bg-background"
+                            onClick={() => deleteFile(file.id)}
+                            disabled={file.isUploading}
+                          >
+                            <XIcon className="size-4" />
+                          </Button>
+                        </div>
+
+                        {/* Cancel Upload Button (Top Right) */}
+                        {file.isUploading && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="absolute top-1 right-1 size-6 rounded-full bg-background/60 hover:bg-background/80 backdrop-blur-sm"
+                            onClick={() => deleteFile(file.id)}
+                          >
+                            <XIcon className="size-3" />
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           </div>
         </fieldset>

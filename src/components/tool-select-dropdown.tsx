@@ -1,3 +1,5 @@
+"use client";
+
 import { appStore } from "@/app/store";
 import { AllowedMCPServer, MCPServerInfo } from "app-types/mcp";
 import { cn, objectFlow } from "lib/utils";
@@ -9,6 +11,7 @@ import {
   CodeIcon,
   GlobeIcon,
   HardDriveUploadIcon,
+  ImagesIcon,
   InfoIcon,
   Loader,
   MessageCircle,
@@ -75,6 +78,9 @@ import { mutate } from "swr";
 import { handleErrorWithToast } from "ui/shared-toast";
 import { useAgents } from "@/hooks/queries/use-agents";
 import { redriectMcpOauth } from "lib/ai/mcp/oauth-redirect";
+import { GeminiIcon } from "ui/gemini-icon";
+import { useChatModels } from "@/hooks/queries/use-chat-models";
+import { OpenAIIcon } from "ui/openai-icon";
 
 interface ToolSelectDropdownProps {
   align?: "start" | "end" | "center";
@@ -83,6 +89,7 @@ interface ToolSelectDropdownProps {
   mentions?: ChatMention[];
   onSelectWorkflow?: (workflow: WorkflowSummary) => void;
   onSelectAgent?: (agent: AgentSummary) => void;
+  onGenerateImage?: (provider?: "google" | "openai") => void;
   className?: string;
 }
 
@@ -101,6 +108,7 @@ export function ToolSelectDropdown({
   side,
   onSelectWorkflow,
   onSelectAgent,
+  onGenerateImage,
   mentions,
   className,
 }: ToolSelectDropdownProps) {
@@ -117,6 +125,18 @@ export function ToolSelectDropdown({
 
   const t = useTranslations("Chat.Tool");
   const { isLoading } = useMcpList();
+  const { data: providers } = useChatModels();
+  const [globalModel] = appStore(useShallow((state) => [state.chatModel]));
+
+  const modelInfo = useMemo(() => {
+    const provider = providers?.find(
+      (provider) => provider.provider === globalModel?.provider,
+    );
+    const model = provider?.models.find(
+      (model) => model.name === globalModel?.model,
+    );
+    return model;
+  }, [providers, globalModel]);
 
   useWorkflowToolList({
     refreshInterval: 1000 * 60 * 5,
@@ -231,6 +251,13 @@ export function ToolSelectDropdown({
           <DropdownMenuSeparator />
         </div>
         <AgentSelector onSelectAgent={onSelectAgent} />
+        <div className="py-1">
+          <DropdownMenuSeparator />
+        </div>
+        <ImageGeneratorSelector
+          onGenerateImage={onGenerateImage}
+          modelInfo={modelInfo}
+        />
         <div className="py-1">
           <DropdownMenuSeparator />
         </div>
@@ -1013,6 +1040,47 @@ function AgentSelector({
                 </div>
               </DropdownMenuItem>
             ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuPortal>
+      </DropdownMenuSub>
+    </DropdownMenuGroup>
+  );
+}
+
+function ImageGeneratorSelector({
+  onGenerateImage,
+  modelInfo,
+}: {
+  onGenerateImage?: (provider?: "google" | "openai") => void;
+  modelInfo?: { isToolCallUnsupported?: boolean };
+}) {
+  const t = useTranslations("Chat");
+
+  return (
+    <DropdownMenuGroup>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger className="text-xs flex items-center gap-2 font-semibold cursor-pointer">
+          <ImagesIcon className="size-3.5" />
+          {t("generateImage")}
+        </DropdownMenuSubTrigger>
+        <DropdownMenuPortal>
+          <DropdownMenuSubContent>
+            <DropdownMenuItem
+              disabled={modelInfo?.isToolCallUnsupported}
+              onClick={() => onGenerateImage?.("google")}
+              className="cursor-pointer"
+            >
+              <GeminiIcon className="mr-2 size-4" />
+              Gemini (Nano Banana)
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={modelInfo?.isToolCallUnsupported}
+              onClick={() => onGenerateImage?.("openai")}
+              className="cursor-pointer"
+            >
+              <OpenAIIcon className="mr-2 size-4" />
+              OpenAI
+            </DropdownMenuItem>
           </DropdownMenuSubContent>
         </DropdownMenuPortal>
       </DropdownMenuSub>

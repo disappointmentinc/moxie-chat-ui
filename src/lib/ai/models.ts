@@ -33,11 +33,9 @@ const staticModels = {
     "gemini-2.5-pro": google("gemini-2.5-pro"),
   },
   anthropic: {
-    "claude-4-sonnet": anthropic("claude-4-sonnet-20250514"),
-    "claude-4-opus": anthropic("claude-4-opus-20250514"),
-    "claude-3-7-sonnet": anthropic("claude-3-7-sonnet-20250219"),
+    "sonnet-4.5": anthropic("claude-sonnet-4-5"),
+    "opus-4.1": anthropic("claude-opus-4-1"),
   },
-  // xai Grok models are intentionally filtered out below from selection
   ollama: {
     "gemma3:1b": ollama("gemma3:1b"),
     "gemma3:4b": ollama("gemma3:4b"),
@@ -52,7 +50,7 @@ const staticModels = {
     "deepseek-v3:free": openrouter("deepseek/deepseek-chat-v3-0324:free"),
     "gemini-2.0-flash-exp:free": openrouter("google/gemini-2.0-flash-exp:free"),
   },
-};
+} as const;
 
 const staticUnsupportedModels = new Set([
   staticModels.openai["o4-mini"],
@@ -65,6 +63,12 @@ const staticUnsupportedModels = new Set([
   staticModels.openRouter["deepseek-r1:free"],
   staticModels.openRouter["gemini-2.0-flash-exp:free"],
 ]);
+
+const staticSupportImageInputModels = {
+  ...staticModels.google,
+  ...staticModels.openai,
+  ...staticModels.anthropic,
+};
 
 const openaiCompatibleProviders = openaiCompatibleModelsSafeParse(
   process.env.OPENAI_COMPATIBLE_DATA,
@@ -100,7 +104,11 @@ export const isToolCallUnsupportedModel = (model: LanguageModel) => {
   return allUnsupportedModels.has(model);
 };
 
-// Default to GPT-5
+const isImageInputUnsupportedModel = (model: LanguageModel) => {
+  return !Object.values(staticSupportImageInputModels).includes(model);
+};
+
+// Default to GPT-5 to match local expectations
 const fallbackModel = staticModels.openai["gpt-5"];
 
 export const customModelProvider = {
@@ -109,10 +117,36 @@ export const customModelProvider = {
     models: Object.entries(models).map(([name, model]) => ({
       name,
       isToolCallUnsupported: isToolCallUnsupportedModel(model),
+      isImageInputUnsupported: isImageInputUnsupportedModel(model),
     })),
+    hasAPIKey: checkProviderAPIKey(provider as keyof typeof staticModels),
   })),
   getModel: (model?: ChatModel): LanguageModel => {
     if (!model) return fallbackModel;
     return filteredAllModels[model.provider]?.[model.model] || fallbackModel;
   },
 };
+
+function checkProviderAPIKey(provider: keyof typeof staticModels) {
+  let key: string | undefined;
+  switch (provider) {
+    case "openai":
+      key = process.env.OPENAI_API_KEY;
+      break;
+    case "google":
+      key = process.env.GOOGLE_GENERATIVE_AI_API_KEY;
+      break;
+    case "anthropic":
+      key = process.env.ANTHROPIC_API_KEY;
+      break;
+    case "ollama":
+      key = process.env.OLLAMA_BASE_URL;
+      break;
+    case "openRouter":
+      key = process.env.OPENROUTER_API_KEY;
+      break;
+    default:
+      return true; // assume custom providers manage their own keys
+  }
+  return !!key && key !== "****";
+}

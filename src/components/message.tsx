@@ -11,6 +11,7 @@ import {
   AssistMessagePart,
   ToolMessagePart,
   ReasoningPart,
+  FileMessagePart,
 } from "./message-parts";
 import { ChevronDown, ChevronUp, TriangleAlertIcon } from "lucide-react";
 import { Button } from "ui/button";
@@ -19,21 +20,23 @@ import { ChatMetadata } from "app-types/chat";
 
 interface Props {
   message: UIMessage;
-  prevMessage: UIMessage;
+  prevMessage?: UIMessage;
   threadId?: string;
-  isLoading: boolean;
-  isLastMessage: boolean;
-  setMessages: UseChatHelpers<UIMessage>["setMessages"];
-  sendMessage: UseChatHelpers<UIMessage>["sendMessage"];
+  isLoading?: boolean;
+  isLastMessage?: boolean;
+  setMessages?: UseChatHelpers<UIMessage>["setMessages"];
+  sendMessage?: UseChatHelpers<UIMessage>["sendMessage"];
   className?: string;
   addToolResult?: UseChatHelpers<UIMessage>["addToolResult"];
-  messageIndex: number;
-  status: UseChatHelpers<UIMessage>["status"];
+  messageIndex?: number;
+  status?: UseChatHelpers<UIMessage>["status"];
+  readonly?: boolean;
 }
 
 const PurePreviewMessage = ({
   message,
   prevMessage,
+  readonly,
   threadId,
   isLoading,
   isLastMessage,
@@ -66,6 +69,7 @@ const PurePreviewMessage = ({
               return (
                 <ReasoningPart
                   key={key}
+                  readonly={readonly}
                   reasoningText={part.text}
                   isThinking={isLastPart && isLastMessage && isLoading}
                 />
@@ -78,6 +82,7 @@ const PurePreviewMessage = ({
                   key={key}
                   status={status}
                   part={part}
+                  readonly={readonly}
                   isLast={isLastPart}
                   message={message}
                   setMessages={setMessages}
@@ -93,6 +98,7 @@ const PurePreviewMessage = ({
                   isLast={isLastMessage && isLastPart}
                   isLoading={isLoading}
                   key={key}
+                  readonly={readonly}
                   part={part}
                   prevMessage={prevMessage}
                   showActions={
@@ -112,14 +118,17 @@ const PurePreviewMessage = ({
                 isLastMessage &&
                 isLastPart &&
                 part.state == "input-available" &&
-                isLoading;
+                isLoading &&
+                !readonly;
               return (
                 <ToolMessagePart
                   isLast={isLast}
+                  readonly={readonly}
                   messageId={message.id}
                   isManualToolInvocation={isManualToolInvocation}
                   showActions={
-                    isLastMessage ? isLastPart && !isLoading : isLastPart
+                    !readonly &&
+                    (isLastMessage ? isLastPart && !isLoading : isLastPart)
                   }
                   addToolResult={addToolResult}
                   key={key}
@@ -129,6 +138,14 @@ const PurePreviewMessage = ({
               );
             } else if (part.type === "step-start") {
               return null;
+            } else if (part.type === "file") {
+              return (
+                <FileMessagePart
+                  key={key}
+                  part={part}
+                  isUserMessage={isUserMessage}
+                />
+              );
             } else {
               return <div key={key}> unknown part {part.type}</div>;
             }

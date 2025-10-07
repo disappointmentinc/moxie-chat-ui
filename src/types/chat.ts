@@ -95,6 +95,7 @@ export const chatApiSchemaRequestBodySchema = z.object({
     .optional(),
   toolChoice: z.enum(["auto", "none", "manual"]),
   mentions: z.array(ChatMentionSchema).optional(),
+  imageTool: z.object({ model: z.string().optional() }).optional(),
   allowedMcpServers: z.record(z.string(), AllowedMCPServerZodSchema).optional(),
   allowedAppDefaultToolkit: z.array(z.string()).optional(),
 });
@@ -145,6 +146,8 @@ export type ChatRepository = {
   deleteAllThreads(userId: string): Promise<void>;
 
   deleteUnarchivedThreads(userId: string): Promise<void>;
+
+  checkAccess(id: string, userId: string): Promise<boolean>;
 
   insertMessages(
     messages: PartialBy<ChatMessage, "createdAt">[],

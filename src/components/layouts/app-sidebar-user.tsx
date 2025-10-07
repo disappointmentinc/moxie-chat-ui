@@ -13,7 +13,6 @@ import {
   DropdownMenuSubContent,
   DropdownMenuCheckboxItem,
 } from "ui/dropdown-menu";
-import { LottieAvatar } from "@/components/ui/lottie-avatar";
 import { SidebarMenuButton, SidebarMenuItem, SidebarMenu } from "ui/sidebar";
 import {
   ChevronsUpDown,
@@ -25,29 +24,41 @@ import {
   Sun,
   MoonStar,
   ChevronRight,
+  Settings,
   Smartphone,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { appStore } from "@/app/store";
 import { BASE_THEMES, COOKIE_KEY_LOCALE, SUPPORTED_LOCALES } from "lib/const";
-import { capitalizeFirstLetter, cn } from "lib/utils";
+import { capitalizeFirstLetter, cn, fetcher } from "lib/utils";
 import { authClient } from "auth/client";
 import { useTranslations } from "next-intl";
 import useSWR from "swr";
 import { getLocaleAction } from "@/i18n/get-locale";
-import { useCallback, useState, useEffect } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import { useThemeStyle } from "@/hooks/use-theme-style";
-import { Session, User } from "better-auth";
+import { BasicUser } from "app-types/user";
+import { getUserAvatar } from "lib/user/utils";
+import { Skeleton } from "ui/skeleton";
+import { LottieAvatar } from "@/components/ui/lottie-avatar";
 import { toast } from "sonner";
 
-export function AppSidebarUser({
-  session,
-}: { session?: { session: Session; user: User } }) {
+export function AppSidebarUserInner(props: {
+  user?: BasicUser;
+}) {
+  const { data: user } = useSWR<BasicUser>(`/api/user/details`, fetcher, {
+    fallbackData: props.user,
+    suspense: true,
+    revalidateOnMount: false,
+    revalidateOnFocus: false,
+    shouldRetryOnError: false,
+    refreshInterval: 1000 * 60 * 10,
+  });
   const appStoreMutate = appStore((state) => state.mutate);
   const t = useTranslations("Layout");
+  const { theme, setTheme } = useTheme();
+  const { themeStyle, setThemeStyle } = useThemeStyle();
   const [canInstallPWA, setCanInstallPWA] = useState(false);
-
-  const user = session?.user;
 
   const logout = () => {
     authClient.signOut().finally(() => {
@@ -55,24 +66,37 @@ export function AppSidebarUser({
     });
   };
 
+  // Keep the session fresh while sidebar is mounted
+  useSWR(
+    "/session-update",
+    () =>
+      authClient.getSession().then(() => {
+        console.debug(`session-update: ${new Date().toISOString()}`);
+      }),
+    {
+      refreshIntervalOnFocus: false,
+      focusThrottleInterval: 1000 * 60 * 5,
+      revalidateOnFocus: false,
+      refreshWhenHidden: true,
+      refreshInterval: 1000 * 60 * 5,
+    },
+  );
+
   // Check if PWA can be installed
   useEffect(() => {
     const checkPWAInstallability = () => {
       if (typeof window !== "undefined" && (window as any).pwaManager) {
-        setCanInstallPWA((window as any).pwaManager.canInstall);
+        setCanInstallPWA(Boolean((window as any).pwaManager.canInstall));
       }
     };
 
-    // Check immediately
     checkPWAInstallability();
-
-    // Check every second for PWA readiness
     const interval = setInterval(checkPWAInstallability, 1000);
 
     return () => clearInterval(interval);
   }, []);
 
-  const handleInstallPWA = async () => {
+  const handleInstallPWA = useCallback(async () => {
     if (typeof window !== "undefined" && (window as any).pwaManager) {
       try {
         await (window as any).pwaManager.installApp();
@@ -85,22 +109,12 @@ export function AppSidebarUser({
         "Install not available. Visit this site on mobile Chrome/Safari or desktop Chrome/Edge",
       );
     }
-  };
+  }, []);
 
-  useSWR(
-    "/session-update",
-    () =>
-      authClient.getSession().then(() => {
-        console.log(`session-update: ${new Date().toISOString()}`);
-      }),
-    {
-      refreshIntervalOnFocus: false,
-      focusThrottleInterval: 1000 * 60 * 5,
-      revalidateOnFocus: false,
-      refreshWhenHidden: true,
-      refreshInterval: 1000 * 60 * 5,
-    },
-  );
+  const userAvatar = useMemo(() => getUserAvatar(user), [user]);
+  const shouldUseLottie = !user?.image || userAvatar === "/profile-avatar.png";
+
+  if (!user) return null;
 
   return (
     <SidebarMenu>
@@ -110,17 +124,18 @@ export function AppSidebarUser({
             <SidebarMenuButton
               className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground bg-input/30 border"
               size={"lg"}
+              data-testid="sidebar-user-button"
             >
               <LottieAvatar
                 className="rounded-full size-8 border"
-                src={user?.image || "/profile-avatar.png"}
-                alt={user?.name || ""}
+                src={userAvatar}
+                alt={user?.name || "User"}
                 fallbackText={user?.name?.slice(0, 1) || ""}
-                useLottie={
-                  !user?.image || user?.image === "/profile-avatar.png"
-                }
+                useLottie={shouldUseLottie}
               />
-              <span className="truncate">{user?.email}</span>
+              <span className="truncate" data-testid="sidebar-user-email">
+                {user?.email}
+              </span>
               <ChevronsUpDown className="ml-auto" />
             </SidebarMenuButton>
           </DropdownMenuTrigger>
@@ -133,15 +148,18 @@ export function AppSidebarUser({
               <div className="flex items-center gap-2 px-1 py-1.5 text-left text-sm">
                 <LottieAvatar
                   className="h-8 w-8 rounded-full"
-                  src={user?.image || "/profile-avatar.png"}
-                  alt={user?.name || ""}
+                  src={userAvatar}
+                  alt={user?.name || "User"}
                   fallbackText={user?.name?.slice(0, 1) || ""}
-                  useLottie={
-                    !user?.image || user?.image === "/profile-avatar.png"
-                  }
+                  useLottie={shouldUseLottie}
                 />
                 <div className="grid flex-1 text-left text-sm leading-tight">
-                  <span className="truncate font-medium">{user?.name}</span>
+                  <span
+                    className="truncate font-medium"
+                    data-testid="sidebar-user-name"
+                  >
+                    {user?.name}
+                  </span>
                   <span className="truncate text-xs text-muted-foreground">
                     {user?.email}
                   </span>
@@ -157,16 +175,14 @@ export function AppSidebarUser({
               <Settings2 className="size-4 text-foreground" />
               <span>{t("chatPreferences")}</span>
             </DropdownMenuItem>
-            <SelectTheme />
-            <SelectLanguage />
-            <DropdownMenuSeparator />
             <DropdownMenuItem
               className="cursor-pointer"
-              onClick={() => appStoreMutate({ openShortcutsPopup: true })}
+              onClick={() => appStoreMutate({ openCommandPalette: true })}
             >
               <Command className="size-4 text-foreground" />
               <span>{t("keyboardShortcuts")}</span>
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
 
             {(canInstallPWA || typeof window === "undefined") && (
               <DropdownMenuItem
@@ -179,9 +195,31 @@ export function AppSidebarUser({
             )}
 
             <DropdownMenuSeparator />
+
+            <DropdownMenuItem
+              onClick={() => appStoreMutate({ openUserSettings: true })}
+              className="cursor-pointer"
+              data-testid="user-settings-menu-item"
+            >
+              <Settings className="size-4 text-foreground" />
+              <span>User Settings</span>
+            </DropdownMenuItem>
+
+            <DropdownMenuSeparator />
+
+            <SelectTheme
+              theme={theme}
+              setTheme={setTheme}
+              themeStyle={themeStyle}
+              setThemeStyle={setThemeStyle}
+            />
+            <SelectLanguage />
+
+            <DropdownMenuSeparator />
+
             <DropdownMenuItem onClick={logout} className="cursor-pointer">
               <LogOutIcon className="size-4 text-foreground" />
-              <span>{t("signOut")}</span>
+              <span>{t("logout")}</span>
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -190,36 +228,37 @@ export function AppSidebarUser({
   );
 }
 
-function SelectTheme() {
+function SelectTheme({
+  theme,
+  setTheme,
+  themeStyle,
+  setThemeStyle,
+}: {
+  theme?: string;
+  setTheme: (theme: string) => void;
+  themeStyle: string;
+  setThemeStyle: (theme: string) => void;
+}) {
   const t = useTranslations("Layout");
-
-  const { theme = "light", setTheme } = useTheme();
-
-  const { themeStyle = "default", setThemeStyle } = useThemeStyle();
 
   return (
     <DropdownMenuSub>
       <DropdownMenuSubTrigger
-        className="flex items-center"
-        icon={
-          <>
-            <span className="text-muted-foreground text-xs min-w-0 truncate">
-              {`${capitalizeFirstLetter(theme)} ${capitalizeFirstLetter(
-                themeStyle,
-              )}`}
-            </span>
-            <ChevronRight className="size-4 ml-2" />
-          </>
-        }
+        className="cursor-pointer"
+        data-testid="theme-menu-trigger"
       >
         <Palette className="mr-2 size-4" />
         <span className="mr-auto">{t("theme")}</span>
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          {capitalizeFirstLetter(themeStyle)}
+          <ChevronRight className="size-4 ml-2" />
+        </span>
       </DropdownMenuSubTrigger>
       <DropdownMenuPortal>
         <DropdownMenuSubContent className="w-48">
           <DropdownMenuLabel className="text-muted-foreground w-full flex items-center">
             <span className="text-muted-foreground text-xs mr-2 select-none">
-              {capitalizeFirstLetter(theme)}
+              {capitalizeFirstLetter(theme ?? "light")}
             </span>
             <div className="flex-1" />
 
@@ -248,17 +287,17 @@ function SelectTheme() {
             </div>
           </DropdownMenuLabel>
           <div className="max-h-96 overflow-y-auto">
-            {BASE_THEMES.map((t) => (
+            {BASE_THEMES.map((themeName) => (
               <DropdownMenuCheckboxItem
-                key={t}
-                checked={themeStyle === t}
-                onClick={(e) => {
-                  e.preventDefault();
-                  setThemeStyle(t);
+                key={themeName}
+                checked={themeStyle === themeName}
+                onClick={(event) => {
+                  event.preventDefault();
+                  setThemeStyle(themeName);
                 }}
                 className="text-sm"
               >
-                {capitalizeFirstLetter(t)}
+                {capitalizeFirstLetter(themeName)}
               </DropdownMenuCheckboxItem>
             ))}
           </div>
@@ -281,7 +320,7 @@ function SelectLanguage() {
 
   return (
     <DropdownMenuSub>
-      <DropdownMenuSubTrigger>
+      <DropdownMenuSubTrigger className="cursor-pointer">
         <Languages className="mr-2 size-4" />
         <span>{t("language")}</span>
       </DropdownMenuSubTrigger>
@@ -304,5 +343,34 @@ function SelectLanguage() {
         </DropdownMenuSubContent>
       </DropdownMenuPortal>
     </DropdownMenuSub>
+  );
+}
+
+export function AppSidebarUserSkeleton() {
+  return (
+    <SidebarMenu>
+      <SidebarMenuItem>
+        <SidebarMenuButton
+          className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground bg-input/30 border"
+          size={"lg"}
+          data-testid="sidebar-user-button"
+        >
+          <Skeleton className="h-8 w-8 rounded-full" />
+          <Skeleton className="h-4 w-24" />
+        </SidebarMenuButton>
+      </SidebarMenuItem>
+    </SidebarMenu>
+  );
+}
+
+export function AppSidebarUser({
+  user,
+}: {
+  user?: BasicUser;
+}) {
+  return (
+    <Suspense fallback={<AppSidebarUserSkeleton />}>
+      <AppSidebarUserInner user={user} />
+    </Suspense>
   );
 }

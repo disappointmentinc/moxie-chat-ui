@@ -15,6 +15,7 @@ import {
   DefaultChatTransport,
   isToolUIPart,
   lastAssistantMessageIsCompleteWithToolCalls,
+  TextUIPart,
   UIMessage,
 } from "ai";
 
@@ -76,6 +77,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     threadList,
     threadMentions,
     pendingThreadMention,
+    threadImageToolModel,
   ] = appStore(
     useShallow((state) => [
       state.mutate,
@@ -86,6 +88,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
       state.threadList,
       state.threadMentions,
       state.pendingThreadMention,
+      state.threadImageToolModel,
     ]),
   );
 
@@ -110,7 +113,10 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
         .flatMap((m) =>
           m.parts
             .filter((v) => v.type === "text")
-            .map((p) => `${m.role}: ${truncateString(p.text, 500)}`),
+            .map(
+              (p) =>
+                `${m.role}: ${truncateString((p as TextUIPart).text, 500)}`,
+            ),
         );
       if (part.length > 0) {
         generateTitle(part.join("\n\n"));
@@ -155,6 +161,9 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
             : latestRef.current.allowedMcpServers,
           mentions: latestRef.current.mentions,
           message: lastMessage,
+          imageTool: {
+            model: latestRef.current.threadImageToolModel[threadId],
+          },
         };
         return { body: requestBody };
       },
@@ -185,6 +194,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     threadList,
     threadId,
     mentions: threadMentions[threadId],
+    threadImageToolModel,
   });
 
   const isLoading = useMemo(
@@ -324,7 +334,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
       if (isLastMessageCopy) {
         const lastMessage = messages.at(-1);
         const lastMessageText = lastMessage!.parts
-          .filter((part) => part.type == "text")
+          .filter((part): part is TextUIPart => part.type == "text")
           ?.at(-1)?.text;
         if (!lastMessageText) return;
         navigator.clipboard.writeText(lastMessageText);
