@@ -13,7 +13,8 @@ import {
 } from "@/components/ui/card";
 import { useObjectState } from "@/hooks/use-object-state";
 import { cn } from "lib/utils";
-import { ChevronLeft, Loader } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
+import { LottieLoader } from "@/components/ui/lottie-animation";
 import { toast } from "sonner";
 import { safe } from "ts-safe";
 import { UserZodSchema } from "app-types/user";
@@ -212,7 +213,9 @@ export default function EmailSignUp({
               }}
             >
               {step === 3 ? t("Auth.SignUp.createAccount") : t("Common.next")}
-              {isLoading && <Loader className="size-4 ml-2" />}
+              {isLoading && (
+              <LottieLoader size="xs" variant="01" className="ml-2" />
+            )}
             </Button>
             <Button
               tabIndex={step === 1 ? -1 : 0}
@@ -230,3 +233,6 @@ export default function EmailSignUp({
     </Card>
   );
 }
+
+
+
