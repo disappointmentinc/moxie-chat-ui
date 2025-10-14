@@ -8,6 +8,7 @@ import {
   Loader2,
   PaperclipIcon,
   PlusIcon,
+  PresentationIcon,
   Square,
   XIcon,
 } from "lucide-react";
@@ -46,6 +47,16 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "ui/dialog";
+import { Input } from "ui/input";
+import { Label } from "ui/label";
 import { useFileUpload } from "@/hooks/use-presigned-upload";
 import { toast } from "sonner";
 import { generateUUID, cn } from "@/lib/utils";
@@ -95,6 +106,9 @@ export default function PromptInput({
 }: PromptInputProps) {
   const t = useTranslations("Chat");
   const [isUploadDropdownOpen, setIsUploadDropdownOpen] = useState(false);
+  const [isPPTXDialogOpen, setIsPPTXDialogOpen] = useState(false);
+  const [pptxPrompt, setPptxPrompt] = useState("");
+  const [isGeneratingPPTX, setIsGeneratingPPTX] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { upload } = useFileUpload();
   const { data: providers } = useChatModels();
@@ -381,6 +395,72 @@ export default function PromptInput({
     [threadId, editorRef],
   );
 
+  const handleGeneratePPTX = useCallback(async () => {
+    if (!threadId || !pptxPrompt.trim()) return;
+
+    setIsGeneratingPPTX(true);
+    setIsPPTXDialogOpen(false);
+
+    try {
+      toast.info("Generating presentation...", { duration: 2000 });
+
+      const response = await fetch("/api/generate-pptx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          prompt: pptxPrompt,
+          useRAG: true,
+          theme: "healthrise",
+          maxSlides: 8,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to generate presentation");
+      }
+
+      const data = await response.json();
+
+      // Add generated PPTX to uploaded files
+      const fileId = generateUUID();
+      const pptxFile: UploadedFile = {
+        id: fileId,
+        url: data.url,
+        name: data.filename,
+        mimeType:
+          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        size: data.metadata.size,
+        isUploading: false,
+        progress: 100,
+      };
+
+      appStoreMutate((prev) => ({
+        threadFiles: {
+          ...prev.threadFiles,
+          [threadId]: [...(prev.threadFiles[threadId] ?? []), pptxFile],
+        },
+      }));
+
+      toast.success(
+        `Presentation generated! ${data.metadata.slideCount} slides created.`,
+      );
+      setPptxPrompt("");
+    } catch (error) {
+      console.error("PPTX generation error:", error);
+      toast.error(
+        error instanceof Error ? error.message : "Failed to generate presentation",
+      );
+    } finally {
+      setIsGeneratingPPTX(false);
+    }
+  }, [threadId, pptxPrompt, appStoreMutate]);
+
+  const openPPTXDialog = useCallback(() => {
+    setIsUploadDropdownOpen(false);
+    setIsPPTXDialogOpen(true);
+  }, []);
+
   const addMention = useCallback(
     (mention: ChatMention) => {
       if (!threadId) return;
@@ -622,6 +702,15 @@ export default function PromptInput({
                       Upload file
                     </DropdownMenuItem>
 
+                    <DropdownMenuItem
+                      className="cursor-pointer"
+                      onClick={openPPTXDialog}
+                      disabled={isGeneratingPPTX}
+                    >
+                      <PresentationIcon className="mr-2 size-4" />
+                      Generate presentation
+                    </DropdownMenuItem>
+
                     <DropdownMenuSub>
                       <DropdownMenuSubTrigger className="cursor-pointer">
                         <ImagesIcon className="mr-4 size-4 text-muted-foreground" />
@@ -843,6 +932,67 @@ export default function PromptInput({
           </div>
         </fieldset>
       </div>
+
+      {/* PPTX Generation Dialog */}
+      <Dialog open={isPPTXDialogOpen} onOpenChange={setIsPPTXDialogOpen}>
+        <DialogContent className="sm:max-w-[500px]">
+          <DialogHeader>
+            <DialogTitle>Generate Presentation</DialogTitle>
+            <DialogDescription>
+              Enter a topic or prompt, and AI will generate a professional
+              presentation using content from your uploaded documents.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="pptx-prompt">Presentation Topic</Label>
+              <Input
+                id="pptx-prompt"
+                placeholder="e.g., Q4 Marketing Strategy for Healthcare Products"
+                value={pptxPrompt}
+                onChange={(e) => setPptxPrompt(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    handleGeneratePPTX();
+                  }
+                }}
+                disabled={isGeneratingPPTX}
+                autoFocus
+              />
+            </div>
+            <div className="text-sm text-muted-foreground">
+              The AI will search your uploaded documents for relevant content
+              and create a {8}-slide presentation.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setIsPPTXDialogOpen(false)}
+              disabled={isGeneratingPPTX}
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handleGeneratePPTX}
+              disabled={!pptxPrompt.trim() || isGeneratingPPTX}
+            >
+              {isGeneratingPPTX ? (
+                <>
+                  <Loader2 className="mr-2 size-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <PresentationIcon className="mr-2 size-4" />
+                  Generate
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
