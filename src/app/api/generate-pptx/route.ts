@@ -48,51 +48,117 @@ export async function POST(request: Request) {
       `Generating PPTX for user ${session.user.id}: "${prompt}" (RAG: ${useRAG})`,
     );
 
-    // Step 1: Search RAG for relevant content (if enabled)
+    // Step 1: Search RAG for relevant content with multi-query expansion
     let contextContent = "";
+    let ragResultsCount = 0;
+    const ragSources: Set<string> = new Set();
+
     if (useRAG) {
       try {
-        logger.info(`Searching RAG for: "${prompt}"`);
-        const ragResults = await searchDocuments(prompt, 10);
+        logger.info(`Searching RAG with multi-query expansion for: "${prompt}"`);
 
-        if (ragResults.length > 0) {
-          contextContent = ragResults
-            .map(
-              (result, i) =>
-                `[Source ${i + 1}] (Score: ${result.score.toFixed(2)}, File: ${result.metadata.filename})\n${result.text}`,
-            )
-            .join("\n\n");
+        // Multi-query expansion: Generate alternative search queries
+        const queryVariants = [
+          prompt, // Original query
+          `Key information about: ${prompt}`, // Information-seeking variant
+          `Data and statistics related to: ${prompt}`, // Data-focused variant
+          `Background and context for: ${prompt}`, // Context variant
+        ];
 
-          logger.info(`Found ${ragResults.length} relevant documents from RAG`);
+        // Search with all query variants and collect results
+        const allResults = await Promise.all(
+          queryVariants.map(query => searchDocuments(query, 5))
+        );
+
+        // Flatten and deduplicate results by chunk ID
+        const seenChunks = new Set<string>();
+        const uniqueResults = allResults
+          .flat()
+          .filter(result => {
+            const chunkId = `${result.metadata.filename}-${result.text.substring(0, 50)}`;
+            if (seenChunks.has(chunkId)) return false;
+            seenChunks.add(chunkId);
+            return true;
+          })
+          // Apply relevance threshold (only high-confidence results)
+          .filter(result => result.score >= 0.65)
+          // Sort by relevance score
+          .sort((a, b) => b.score - a.score)
+          // Take top 15 most relevant
+          .slice(0, 15);
+
+        if (uniqueResults.length > 0) {
+          // Group results by source file for better organization
+          const resultsBySource = uniqueResults.reduce((acc, result) => {
+            const filename = result.metadata.filename || "Unknown";
+            if (!acc[filename]) acc[filename] = [];
+            acc[filename].push(result);
+            ragSources.add(filename);
+            return acc;
+          }, {} as Record<string, typeof uniqueResults>);
+
+          // Format context with source grouping
+          contextContent = Object.entries(resultsBySource)
+            .map(([filename, results]) => {
+              const chunks = results
+                .map((r, i) => `  [Chunk ${i + 1}] (Relevance: ${(r.score * 100).toFixed(0)}%)\n  ${r.text}`)
+                .join("\n\n");
+              return `## Source: ${filename}\n\n${chunks}`;
+            })
+            .join("\n\n---\n\n");
+
+          ragResultsCount = uniqueResults.length;
+          logger.info(
+            `Found ${ragResultsCount} relevant chunks from ${ragSources.size} source files (after deduplication and filtering)`
+          );
         } else {
-          logger.info("No relevant documents found in RAG");
+          logger.info("No high-confidence documents found in RAG (threshold: 0.65)");
         }
       } catch (error) {
         logger.warn("RAG search failed, continuing without context:", error);
       }
     }
 
-    // Step 2: Generate presentation structure using AI
-    const systemPrompt = `You are a professional presentation designer. Your task is to create a well-structured presentation outline in JSON format.
+    // Step 2: Generate presentation structure using AI with enhanced instructions
+    const systemPrompt = `You are a professional presentation designer creating a high-quality business presentation. Your task is to create a well-structured presentation outline in JSON format.
 
-The presentation should:
-- Have a clear title and optional subtitle
-- Include ${maxSlides} content slides (excluding title slide)
-- Each slide should have a title, topic relevant content and/or 3-5 bullet points 
-- Content should be clear, on brand topic and actionable
-- Use professional language appropriate for business presentations
+PRESENTATION REQUIREMENTS:
+- Create a compelling title and subtitle
+- Generate exactly ${maxSlides} content slides (excluding title slide)
+- Each slide should have:
+  * A clear, engaging title
+  * 3-5 concise bullet points OR key data points
+  * Detailed speaker notes with context and sources
+- Use professional business language
+- Make content actionable and audience-focused
 
-${contextContent ? "Use the provided context from uploaded documents to inform your content. Cite sources where appropriate." : "Generate content based on the user's prompt."}
+${contextContent ? `KNOWLEDGE BASE CONTEXT:
+You have access to ${ragResultsCount} relevant document chunks from ${ragSources.size} source files. Use this information to create data-driven, well-researched content.
 
-Return ONLY valid JSON in this exact format:
+CONTENT GUIDELINES:
+1. Prioritize factual information and specific data from the sources
+2. Include statistics, metrics, and concrete examples when available
+3. Cite sources in speaker notes (e.g., "According to [filename]...")
+4. If sources contain data tables or numbers, incorporate them as bullet points
+5. Use diverse sources to provide comprehensive coverage
+6. Add speaker notes with additional context and full source citations
+
+The provided context is organized by source file. Pay attention to relevance scores - higher scores indicate more relevant content.` :
+`GENERAL KNOWLEDGE MODE:
+Create presentation based on your general knowledge about the topic. Focus on:
+- Industry best practices and common frameworks
+- Key concepts and foundational information
+- Practical recommendations and actionable insights`}
+
+REQUIRED JSON FORMAT (return ONLY valid JSON, no additional text):
 {
   "title": "Presentation Title",
-  "subtitle": "Optional Subtitle",
+  "subtitle": "Optional Subtitle (can be null)",
   "slides": [
     {
       "title": "Slide Title",
       "content": ["Bullet point 1", "Bullet point 2", "Bullet point 3"],
-      "notes": "Optional speaker notes"
+      "notes": "Detailed speaker notes with context, explanations, and source citations if applicable"
     }
   ]
 }`;
@@ -165,7 +231,7 @@ Return ONLY valid JSON in this exact format:
       `Successfully generated and uploaded PPTX: ${uploadResult.key}`,
     );
 
-    // Step 6: Return download URL
+    // Step 6: Return download URL with enhanced metadata
     return NextResponse.json({
       success: true,
       url: uploadResult.sourceUrl,
@@ -176,6 +242,10 @@ Return ONLY valid JSON in this exact format:
         slideCount: presentationData.slides.length + 1, // +1 for title slide
         theme,
         size: pptxBuffer.length,
+        ragEnabled: useRAG,
+        ragChunksUsed: ragResultsCount,
+        ragSourcesUsed: ragSources.size,
+        ragSources: Array.from(ragSources),
       },
     });
   } catch (error) {

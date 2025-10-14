@@ -24,23 +24,6 @@ import { useTranslations } from "next-intl";
 import { MicrosoftIcon } from "ui/microsoft-icon";
 import { SocialAuthenticationProvider } from "app-types/authentication";
 
-// A simple placeholder for a logo component
-const Logo = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className="h-8 w-8"
-  >
-    <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
-  </svg>
-);
-
-
 export default function SignIn({
   emailAndPasswordEnabled,
   signUpEnabled,
@@ -87,17 +70,8 @@ export default function SignIn({
     });
   };
   return (
-    <div className="w-full h-screen lg:grid lg:min-h-[600px] lg:grid-cols-2 xl:min-h-[800px]">
-      <div className="hidden bg-muted lg:flex flex-col items-center justify-center p-8 text-center">
-        <div className="max-w-md">
-          <Logo />
-          <h1 className="text-2xl font-semibold mt-4">Better Chatbot</h1>
-          <p className="mt-2 text-muted-foreground">
-            Welcome back! Please sign in to continue.
-          </p>
-        </div>
-      </div>
-      <div className="flex items-center justify-center py-12">
+    <div className="w-full h-screen flex items-center justify-center">
+      <div className="flex items-center justify-center py-12 w-full">
         <div className="w-full h-full flex flex-col p-4 md:p-8 justify-center">
           <Card className="w-full md:max-w-md bg-background border-none mx-auto shadow-none animate-in fade-in duration-1000">
             <CardHeader className="my-4">

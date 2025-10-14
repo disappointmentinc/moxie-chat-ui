@@ -422,16 +422,20 @@ export default function PromptInput({
 
       const data = await response.json();
 
-      // Send download link as a message
+      // Send download link as a message with RAG stats
+      const ragInfo = data.metadata.ragEnabled && data.metadata.ragChunksUsed > 0
+        ? `\n**Knowledge Base:** Used ${data.metadata.ragChunksUsed} relevant chunks from ${data.metadata.ragSourcesUsed} source file${data.metadata.ragSourcesUsed !== 1 ? 's' : ''}\n**Sources:** ${data.metadata.ragSources.join(', ')}`
+        : '';
+
       const downloadMessage = `✅ **Presentation Generated!**
 
 **Title:** ${data.metadata.title}
 **Slides:** ${data.metadata.slideCount} slides
-**Theme:** Healthrise branded
+**Theme:** Healthrise branded${ragInfo}
 
 📥 [Download ${data.filename}](${data.url})
 
-The presentation was created using content from your uploaded documents.`;
+${data.metadata.ragEnabled && data.metadata.ragChunksUsed > 0 ? 'The presentation includes data-driven content with source citations in speaker notes.' : 'The presentation was created based on general knowledge.'}`;
 
       // Send as a system message (append to chat)
       sendMessage({
