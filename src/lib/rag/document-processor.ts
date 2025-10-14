@@ -1,11 +1,18 @@
 import "server-only";
 
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import * as pdfParse from "pdf-parse";
 import mammoth from "mammoth";
 import { serverFileStorage } from "lib/file-storage";
 import { generateUUID } from "lib/utils";
 import logger from "logger";
+
+// pdf-parse is a CommonJS module, needs dynamic import with type casting
+async function parsePdf(buffer: Buffer): Promise<{ text: string }> {
+  const pdfParseModule = await import("pdf-parse");
+  // @ts-expect-error pdf-parse has inconsistent ESM/CJS exports
+  const pdfParse = pdfParseModule.default || pdfParseModule;
+  return pdfParse(buffer);
+}
 
 export interface ProcessedDocument {
   chunks: DocumentChunk[];
@@ -51,7 +58,7 @@ export async function processDocument(
   try {
     if (metadata.contentType === "application/pdf") {
       logger.info(`Extracting text from PDF: ${fileKey}`);
-      const pdfData = await (pdfParse as any).default(buffer);
+      const pdfData = await parsePdf(buffer);
       text = pdfData.text;
     } else if (
       metadata.contentType ===

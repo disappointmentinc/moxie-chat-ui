@@ -24,15 +24,6 @@ import {
 import { generateUUID } from "lib/utils";
 import logger from "logger";
 
-const STORAGE_PREFIX = resolveStoragePrefix();
-
-// Environment variables for Cloudflare R2
-const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
-const ACCESS_KEY_ID = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID;
-const SECRET_ACCESS_KEY = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY;
-const BUCKET_NAME = process.env.CLOUDFLARE_R2_BUCKET_NAME;
-const PUBLIC_DOMAIN = process.env.CLOUDFLARE_R2_PUBLIC_DOMAIN; // Optional custom domain
-
 /**
  * Cloudflare R2 storage backend (S3-compatible).
  *
@@ -46,6 +37,14 @@ const PUBLIC_DOMAIN = process.env.CLOUDFLARE_R2_PUBLIC_DOMAIN; // Optional custo
  * - FILE_STORAGE_PREFIX: (Optional) Subdirectory prefix for organizing files
  */
 export const createS3FileStorage = (): FileStorage => {
+  // Read environment variables at runtime, not at module load time
+  const STORAGE_PREFIX = resolveStoragePrefix();
+  const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const ACCESS_KEY_ID = process.env.CLOUDFLARE_R2_ACCESS_KEY_ID;
+  const SECRET_ACCESS_KEY = process.env.CLOUDFLARE_R2_SECRET_ACCESS_KEY;
+  const BUCKET_NAME = process.env.CLOUDFLARE_R2_BUCKET_NAME;
+  const PUBLIC_DOMAIN = process.env.CLOUDFLARE_R2_PUBLIC_DOMAIN; // Optional custom domain
+
   if (!ACCOUNT_ID || !ACCESS_KEY_ID || !SECRET_ACCESS_KEY || !BUCKET_NAME) {
     throw new Error(
       "Missing required Cloudflare R2 configuration. Please set: " +
