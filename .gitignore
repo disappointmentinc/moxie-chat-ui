@@ -326,3 +326,6 @@ certificates
 .lottie_options/2-abstract-loaders-lottie-pack-2025-07-16-06-27-07-utc/Abstract Loaders Lottie Pack/Abstract Loaders Lottie Pack/GIF/Abstract Loading 01.gif
 public/uploads
 
+docs/tips-guides/rag-setup.md
+docs/tips-guides/cloudflare-r2-setup.md
+docs/tips-guides/file-storage.md

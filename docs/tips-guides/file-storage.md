@@ -10,10 +10,11 @@ Files are stored with **public access** by default, making them accessible via U
 
 ## Storage Drivers
 
-The project supports two storage backends:
+The project supports three storage backends:
 
-- **Vercel Blob** - Default for all deployments (recommended)
-- **S3** - Planned for AWS/S3-compatible storage
+- **Vercel Blob** - Default for all deployments (recommended for Vercel)
+- **Cloudflare R2** - S3-compatible object storage (recommended for Cloudflare)
+- **S3** - Amazon S3 or any S3-compatible storage
 
 **Vercel Blob** is the default storage driver and works seamlessly in both local development and production environments.
 
@@ -22,8 +23,7 @@ The project supports two storage backends:
 ### Environment Variables
 
 ```ini
-# Storage driver selection (defaults to vercel-blob)
-FILE_STORAGE_TYPE=vercel-blob # or s3 (coming soon)
+# Storage driver selection (defaults to vercel-blob)FILE_STORAGE_TYPE=vercel-blob # Options: vercel-blob | s3
 
 # Optional: Subdirectory prefix for organizing files
 FILE_STORAGE_PREFIX=uploads
@@ -32,11 +32,18 @@ FILE_STORAGE_PREFIX=uploads
 BLOB_READ_WRITE_TOKEN=<auto on Vercel>
 VERCEL_BLOB_CALLBACK_URL= # Optional: For local webhook testing with ngrok
 
-# === S3 (FILE_STORAGE_TYPE=s3, not yet implemented) ===
-# FILE_STORAGE_S3_BUCKET=
-# FILE_STORAGE_S3_REGION=
-# AWS_ACCESS_KEY_ID=
-# AWS_SECRET_ACCESS_KEY=
+# === Cloudflare R2 (FILE_STORAGE_TYPE=s3) ===
+CLOUDFLARE_ACCOUNT_ID=your_account_id
+CLOUDFLARE_R2_ACCESS_KEY_ID=your_access_key_id
+CLOUDFLARE_R2_SECRET_ACCESS_KEY=your_secret_access_key
+CLOUDFLARE_R2_BUCKET_NAME=your_bucket_name
+CLOUDFLARE_R2_PUBLIC_DOMAIN=your-custom-domain.com # Optional: custom domain for public access
+
+# === AWS S3 or other S3-compatible storage (FILE_STORAGE_TYPE=s3) ===
+# Use the same variables as Cloudflare R2 above
+# For AWS S3, set:
+# - CLOUDFLARE_ACCOUNT_ID to your AWS region (e.g., us-east-1)
+# - Leave CLOUDFLARE_R2_PUBLIC_DOMAIN empty to use default S3 URLs
 ```
 
 ### Quick Start with Vercel Blob
@@ -54,12 +61,32 @@ vercel env pull
 
 That's it! File uploads will now work seamlessly in both development and production.
 
+### Quick Start with Cloudflare R2
+
+Cloudflare R2 is perfect for cost-effective, globally distributed file storage:
+
+1. Create an R2 bucket in the Cloudflare Dashboard
+2. Generate API credentials (Access Key ID and Secret Access Key)
+3. Enable public access on your bucket
+4. Add environment variables to `.env.local`:
+
+```bash
+FILE_STORAGE_TYPE=r2
+CLOUDFLARE_ACCOUNT_ID=your_account_id
+CLOUDFLARE_R2_ACCESS_KEY_ID=yVnkW3euCl8hMRUaVDRXtvQhX5rJK32MrQA2kuh_
+CLOUDFLARE_R2_SECRET_ACCESS_KEY=your_secret_key
+CLOUDFLARE_R2_BUCKET_NAME=hrrag
+CLOUDFLARE_R2_PUBLIC_DOMAIN=
+```
+
+For detailed step-by-step instructions, see the [Cloudflare R2 Setup Guide](cloudflare-r2-setup.md).
+
 ## Client Upload
 
 The `useFileUpload` hook **automatically selects the optimal upload method** based on your storage backend:
 
 - **Vercel Blob**: Direct browser → CDN upload (fastest, default)
-- **S3**: Presigned URL upload (when implemented)
+- **Cloudflare R2 / S3**: Presigned URL upload (secure client-side upload)
 
 ```tsx
 "use client";
@@ -106,6 +133,23 @@ sequenceDiagram
   Vercel-->>Browser: Upload complete
   Vercel->>UploadURL: Webhook: upload completed
   Note over UploadURL: Optional: Save to DB
+```
+
+#### Cloudflare R2 / S3 (Presigned URL Upload)
+
+```mermaid
+sequenceDiagram
+  participant Browser
+  participant UploadURL as /api/storage/upload-url
+  participant R2 as Cloudflare R2
+
+  Browser->>UploadURL: POST (request upload URL)
+  Note over Browser,UploadURL: User authenticated
+  UploadURL->>UploadURL: Generate presigned URL
+  UploadURL-->>Browser: Return presigned URL + key
+  Browser->>R2: PUT file (presigned URL)
+  R2-->>Browser: Upload complete
+  Note over Browser: File accessible at public URL
 ```
 
 ### Features
@@ -193,14 +237,16 @@ The `FileStorage` interface provides:
 
 ### Storage Comparison
 
-| Feature              | Vercel Blob         | S3 (Planned)       |
-| -------------------- | ------------------- | ------------------ |
-| Direct Client Upload | ✅ Yes              | ✅ Yes (presigned) |
-| CDN                  | ✅ Global           | Configurable       |
-| Cost                 | Pay-as-you-go       | Pay-as-you-go      |
-| Best For             | All deployments     | AWS ecosystem      |
-| Setup Complexity     | Minimal             | Moderate           |
-| Local Development    | ✅ Works with token | ✅ Works           |
+| Feature              | Vercel Blob              | Cloudflare R2        | AWS S3               |
+| -------------------- | ------------------------ | -------------------- | -------------------- |
+| Direct Client Upload | ✅ Yes                   | ✅ Yes (presigned)   | ✅ Yes (presigned)   |
+| CDN                  | ✅ Global                | ✅ Cloudflare Edge   | Configurable         |
+| Egress Fees          | Included                 | ✅ **Zero**          | Pay per GB           |
+| Cost                 | $0.15/GB storage         | $0.015/GB storage    | $0.023/GB storage    |
+| Best For             | Vercel deployments       | Cost-conscious apps  | AWS ecosystem        |
+| Setup Complexity     | Minimal                  | Easy                 | Moderate             |
+| Local Development    | ✅ Works with token      | ✅ Works             | ✅ Works             |
+| Public Access        | ✅ Automatic             | ✅ Configurable      | Configurable         |
 
 ## Why Not Local Filesystem?
 

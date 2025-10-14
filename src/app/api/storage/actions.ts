@@ -45,15 +45,37 @@ export async function checkStorageAction(): Promise<StorageCheckResult> {
     }
   }
 
-  // 2. Check S3 configuration
+  // 2. Check S3/R2 configuration
   if (storageDriver === "s3") {
-    return {
-      isValid: false,
-      error: "S3 storage is not yet implemented",
-      solution:
-        "S3 storage support is coming soon.\n" +
-        "For now, please use Vercel Blob (default)",
-    };
+    const requiredEnvVars = [
+      "CLOUDFLARE_ACCOUNT_ID",
+      "CLOUDFLARE_R2_ACCESS_KEY_ID",
+      "CLOUDFLARE_R2_SECRET_ACCESS_KEY",
+      "CLOUDFLARE_R2_BUCKET_NAME",
+    ];
+
+    const missingVars = requiredEnvVars.filter(
+      (varName) => !process.env[varName],
+    );
+
+    if (missingVars.length > 0) {
+      return {
+        isValid: false,
+        error: `Missing required Cloudflare R2 configuration: ${missingVars.join(", ")}`,
+        solution:
+          "Please configure Cloudflare R2 in your environment:\n" +
+          "1. Create an R2 bucket in Cloudflare Dashboard\n" +
+          "2. Generate API credentials (Access Key + Secret Key)\n" +
+          "3. Add the following to your .env.local:\n" +
+          "   FILE_STORAGE_TYPE=s3\n" +
+          "   CLOUDFLARE_ACCOUNT_ID=your_account_id\n" +
+          "   CLOUDFLARE_R2_ACCESS_KEY_ID=your_access_key\n" +
+          "   CLOUDFLARE_R2_SECRET_ACCESS_KEY=your_secret_key\n" +
+          "   CLOUDFLARE_R2_BUCKET_NAME=your_bucket_name\n" +
+          "   CLOUDFLARE_R2_PUBLIC_DOMAIN=your_public_domain\n\n" +
+          "See docs/tips-guides/cloudflare-r2-setup.md for detailed instructions",
+      };
+    }
   }
 
   // 3. Validate storage driver

@@ -2,10 +2,14 @@
 
 import { useSidebar } from "ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "ui/tooltip";
-import { ChevronDown, MessageCircleDashed, PanelLeft } from "lucide-react";
+import {
+  AudioWaveformIcon,
+  ChevronDown,
+  MessageCircleDashed,
+  PanelLeft,
+} from "lucide-react";
 import { Button } from "ui/button";
 import { Separator } from "ui/separator";
-import { LottieIcon } from "@/components/ui/lottie-animation";
 
 import { useEffect, useMemo } from "react";
 import { ThreadDropdown } from "../thread-dropdown";
@@ -50,7 +54,7 @@ export function AppHeader() {
         />
       );
     }
-  }, [currentPaths, searchParams, t]);
+  }, [currentPaths, searchParams]);
 
   return (
     <header className="sticky top-0 z-50 flex items-center px-3 py-2">
@@ -108,7 +112,7 @@ export function AppHeader() {
                   }));
                 }}
               >
-                <LottieIcon icon="microphone" size="xs" loop autoplay />
+                <AudioWaveformIcon className="size-4" />
               </Button>
             </TooltipTrigger>
             <TooltipContent align="end" side="bottom">

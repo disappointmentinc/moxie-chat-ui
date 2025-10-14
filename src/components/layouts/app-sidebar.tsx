@@ -58,7 +58,7 @@ export function AppSidebar({
       <SidebarFooter className="flex flex-col items-stretch space-y-2">
         <AppSidebarUser user={user} />
         <div className="text-[10px] leading-snug text-muted-foreground px-3 pt-1">
-          Healthrise Collateral Retrieval-Augmented Generation Beta v1
+          Healthrise Collateral Retrieval-Augmented Generation Beta v1.6
         </div>
       </SidebarFooter>
     </Sidebar>
