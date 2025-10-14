@@ -4,20 +4,24 @@ import type { DocumentChunk } from "./document-processor";
 import { generateEmbeddings, generateQueryEmbedding } from "./embeddings";
 import logger from "logger";
 
-const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
-const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
-const INDEX_NAME = process.env.VECTORIZE_INDEX_ID || "rag-slides-index";
+function getVectorizeConfig() {
+  const ACCOUNT_ID = process.env.CLOUDFLARE_ACCOUNT_ID;
+  const API_TOKEN = process.env.CLOUDFLARE_API_TOKEN;
+  const INDEX_NAME = process.env.VECTORIZE_INDEX_ID || "rag-slides-index";
 
-if (!ACCOUNT_ID) {
-  throw new Error(
-    "CLOUDFLARE_ACCOUNT_ID is required. Please set it in your .env file.",
-  );
-}
+  if (!ACCOUNT_ID) {
+    throw new Error(
+      "CLOUDFLARE_ACCOUNT_ID is required. Please set it in your .env file.",
+    );
+  }
 
-if (!API_TOKEN) {
-  throw new Error(
-    "CLOUDFLARE_API_TOKEN is required. Please set it in your .env file.",
-  );
+  if (!API_TOKEN) {
+    throw new Error(
+      "CLOUDFLARE_API_TOKEN is required. Please set it in your .env file.",
+    );
+  }
+
+  return { ACCOUNT_ID, API_TOKEN, INDEX_NAME };
 }
 
 interface VectorizeVector {
@@ -44,6 +48,7 @@ export async function indexDocuments(
     return;
   }
 
+  const { ACCOUNT_ID, API_TOKEN, INDEX_NAME } = getVectorizeConfig();
   logger.info(`Indexing ${chunks.length} document chunks in Vectorize`);
 
   try {
@@ -109,6 +114,7 @@ export async function searchDocuments(
     throw new Error("Query cannot be empty");
   }
 
+  const { ACCOUNT_ID, API_TOKEN, INDEX_NAME } = getVectorizeConfig();
   logger.info(`Searching Vectorize for: "${query}" (topK: ${topK})`);
 
   try {
@@ -180,6 +186,7 @@ export async function deleteVectorsByIds(ids: string[]): Promise<void> {
     return;
   }
 
+  const { ACCOUNT_ID, API_TOKEN, INDEX_NAME } = getVectorizeConfig();
   logger.info(`Deleting ${ids.length} vectors from Vectorize`);
 
   try {
@@ -215,6 +222,7 @@ export async function deleteVectorsByIds(ids: string[]): Promise<void> {
  * Delete all vectors associated with a file
  */
 export async function deleteVectorsByFileKey(fileKey: string): Promise<void> {
+  const { ACCOUNT_ID, API_TOKEN, INDEX_NAME } = getVectorizeConfig();
   logger.info(`Deleting vectors for file: ${fileKey}`);
 
   try {

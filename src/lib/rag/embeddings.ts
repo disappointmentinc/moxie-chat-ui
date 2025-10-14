@@ -3,20 +3,22 @@ import "server-only";
 import { OpenAIEmbeddings } from "@langchain/openai";
 import logger from "logger";
 
-const EMBEDDING_MODEL =
-  process.env.EMBEDDING_MODEL || "text-embedding-3-small";
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+function getEmbeddingsClient() {
+  const EMBEDDING_MODEL =
+    process.env.EMBEDDING_MODEL || "text-embedding-3-small";
+  const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
-if (!OPENAI_API_KEY) {
-  throw new Error(
-    "OPENAI_API_KEY is required for embeddings. Please set it in your .env file.",
-  );
+  if (!OPENAI_API_KEY) {
+    throw new Error(
+      "OPENAI_API_KEY is required for embeddings. Please set it in your .env file.",
+    );
+  }
+
+  return new OpenAIEmbeddings({
+    modelName: EMBEDDING_MODEL,
+    openAIApiKey: OPENAI_API_KEY,
+  });
 }
-
-const embeddings = new OpenAIEmbeddings({
-  modelName: EMBEDDING_MODEL,
-  openAIApiKey: OPENAI_API_KEY,
-});
 
 /**
  * Generate embeddings for multiple text chunks
@@ -28,6 +30,10 @@ export async function generateEmbeddings(
   if (texts.length === 0) {
     return [];
   }
+
+  const embeddings = getEmbeddingsClient();
+  const EMBEDDING_MODEL =
+    process.env.EMBEDDING_MODEL || "text-embedding-3-small";
 
   logger.info(
     `Generating embeddings for ${texts.length} texts using ${EMBEDDING_MODEL}`,
@@ -56,6 +62,10 @@ export async function generateQueryEmbedding(
     throw new Error("Query text cannot be empty");
   }
 
+  const embeddings = getEmbeddingsClient();
+  const EMBEDDING_MODEL =
+    process.env.EMBEDDING_MODEL || "text-embedding-3-small";
+
   logger.info(`Generating query embedding using ${EMBEDDING_MODEL}`);
 
   try {
@@ -77,6 +87,9 @@ export async function generateQueryEmbedding(
  * - text-embedding-ada-002: 1536 dimensions
  */
 export function getEmbeddingDimensions(): number {
+  const EMBEDDING_MODEL =
+    process.env.EMBEDDING_MODEL || "text-embedding-3-small";
+
   switch (EMBEDDING_MODEL) {
     case "text-embedding-3-large":
       return 3072;
@@ -87,4 +100,5 @@ export function getEmbeddingDimensions(): number {
   }
 }
 
-export { EMBEDDING_MODEL };
+export const EMBEDDING_MODEL =
+  process.env.EMBEDDING_MODEL || "text-embedding-3-small";
