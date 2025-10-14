@@ -440,6 +440,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
             isLoading={isLoading || isPendingToolCall}
             onStop={stop}
             onFocus={isFirstTime ? undefined : handleFocus}
+            messages={messages}
           />
         </div>
         <DeleteThreadPopup

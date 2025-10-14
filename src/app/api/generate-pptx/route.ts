@@ -13,6 +13,7 @@ interface GeneratePPTXRequest {
   useRAG?: boolean;
   theme?: "light" | "dark" | "healthrise";
   maxSlides?: number;
+  chatContext?: Array<{ role: string; content: string }>; // Recent conversation history
 }
 
 /**
@@ -35,6 +36,7 @@ export async function POST(request: Request) {
       useRAG = true,
       theme = "healthrise",
       maxSlides = 10,
+      chatContext = [],
     } = body;
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
@@ -163,9 +165,21 @@ REQUIRED JSON FORMAT (return ONLY valid JSON, no additional text):
   ]
 }`;
 
-    const userPrompt = contextContent
-      ? `Create a presentation about: "${prompt}"\n\nRelevant context from uploaded documents:\n\n${contextContent}`
-      : `Create a presentation about: "${prompt}"`;
+    // Build user prompt with chat context and RAG context
+    let userPrompt = `Create a presentation about: "${prompt}"`;
+
+    // Add chat conversation context if available
+    if (chatContext && chatContext.length > 0) {
+      const conversationSummary = chatContext
+        .map(msg => `${msg.role.toUpperCase()}: ${msg.content}`)
+        .join('\n');
+      userPrompt += `\n\n## Conversation Context\n\nHere's the recent conversation that provides context for this presentation request:\n\n${conversationSummary}`;
+    }
+
+    // Add RAG context if available
+    if (contextContent) {
+      userPrompt += `\n\n## Relevant Documents from Knowledge Base\n\n${contextContent}`;
+    }
 
     logger.info("Calling AI to generate presentation structure");
 

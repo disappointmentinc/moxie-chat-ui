@@ -80,6 +80,7 @@ interface PromptInputProps {
   threadId?: string;
   disabledMention?: boolean;
   onFocus?: () => void;
+  messages?: UIMessage[]; // Chat history for context
 }
 
 const ChatMentionInput = dynamic(() => import("./chat-mention-input"), {
@@ -103,6 +104,7 @@ export default function PromptInput({
   voiceDisabled,
   threadId,
   disabledMention,
+  messages = [],
 }: PromptInputProps) {
   const t = useTranslations("Chat");
   const [isUploadDropdownOpen, setIsUploadDropdownOpen] = useState(false);
@@ -404,6 +406,19 @@ export default function PromptInput({
     try {
       toast.info("Generating presentation...", { duration: 2000 });
 
+      // Extract recent chat context (last 10 messages, excluding system messages)
+      const chatContext = messages
+        .filter(msg => msg.role === 'user' || msg.role === 'assistant')
+        .slice(-10)
+        .map(msg => ({
+          role: msg.role,
+          content: msg.parts
+            .filter(part => part.type === 'text')
+            .map((part: any) => part.text)
+            .join(' ')
+        }))
+        .filter(msg => msg.content.trim().length > 0);
+
       const response = await fetch("/api/generate-pptx", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -412,6 +427,7 @@ export default function PromptInput({
           useRAG: true,
           theme: "healthrise",
           maxSlides: 8,
+          chatContext,
         }),
       });
 
@@ -460,7 +476,7 @@ ${data.metadata.ragEnabled && data.metadata.ragChunksUsed > 0 ? 'The presentatio
     } finally {
       setIsGeneratingPPTX(false);
     }
-  }, [threadId, pptxPrompt, appStoreMutate]);
+  }, [threadId, pptxPrompt, appStoreMutate, messages, sendMessage]);
 
   const openPPTXDialog = useCallback(() => {
     setIsUploadDropdownOpen(false);

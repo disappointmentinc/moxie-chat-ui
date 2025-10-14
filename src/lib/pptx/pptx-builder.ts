@@ -60,6 +60,7 @@ export async function generatePPTX(
       text: "333333",
       background: "FFFFFF",
       accent: "50C878",
+      lightGray: "F5F5F5",
     },
     dark: {
       primary: "61DAFB",
@@ -67,6 +68,7 @@ export async function generatePPTX(
       text: "E0E0E0",
       background: "1E1E1E",
       accent: "03DAC6",
+      lightGray: "2A2A2A",
     },
   };
 
@@ -80,46 +82,78 @@ export async function generatePPTX(
   });
   pptx.layout = "CUSTOM_LAYOUT";
 
-  // Slide 1: Title slide
+  // Slide 1: Title slide with Healthrise branding
   const titleSlide = pptx.addSlide();
   titleSlide.background = { color: colors.background };
 
-  // Add decorative shape
+  // Top accent bar (Healthrise branded)
   titleSlide.addShape(pptx.ShapeType.rect, {
     x: 0,
     y: 0,
     w: "100%",
-    h: 0.5,
+    h: 0.4,
     fill: { color: colors.primary },
+  });
+
+  // Accent stripe on the side (golden yellow)
+  titleSlide.addShape(pptx.ShapeType.rect, {
+    x: 0,
+    y: 0.4,
+    w: 0.15,
+    h: 5.225,
+    fill: { color: colors.accent },
+  });
+
+  // Main title area with background
+  titleSlide.addShape(pptx.ShapeType.rect, {
+    x: 0.5,
+    y: 1.2,
+    w: 9,
+    h: 2.5,
+    fill: { type: "solid", color: colors.lightGray, transparency: 30 },
+    line: { type: "none" },
   });
 
   // Title
   titleSlide.addText(data.title, {
-    x: 0.5,
+    x: 0.8,
     y: 1.5,
-    w: 9,
-    h: 1.5,
-    fontSize: 44,
+    w: 8.5,
+    h: 1.2,
+    fontSize: 48,
     bold: false,
     fontFace: "Calibri Light",
     color: colors.primary,
-    align: "center",
+    align: "left",
     valign: "middle",
   });
 
   // Subtitle
   if (data.subtitle) {
     titleSlide.addText(data.subtitle, {
-      x: 0.5,
-      y: 3,
-      w: 9,
-      h: 0.5,
-      fontSize: 24,
+      x: 0.8,
+      y: 2.8,
+      w: 8.5,
+      h: 0.6,
+      fontSize: 22,
       fontFace: "Calibri",
       color: colors.secondary,
-      align: "center",
+      align: "left",
       valign: "middle",
     });
+  }
+
+  // Healthrise logo (bottom right)
+  try {
+    titleSlide.addImage({
+      path: "public/healthrise-logo.png",
+      x: 7.5,
+      y: 4.5,
+      w: 2,
+      h: 0.8,
+    });
+  } catch (error) {
+    logger.warn("Logo not found, skipping logo insertion");
   }
 
   // Author/Date footer
@@ -131,77 +165,134 @@ export async function generatePPTX(
     });
     titleSlide.addText(`${data.author || "Healthrise Velocity"} • ${dateStr}`, {
       x: 0.5,
-      y: 5,
-      w: 9,
+      y: 5.1,
+      w: 6.5,
       h: 0.3,
-      fontSize: 12,
+      fontSize: 11,
       fontFace: "Calibri",
       color: colors.secondary,
-      align: "center",
+      align: "left",
       valign: "bottom",
     });
   }
 
-  // Content slides
+  // Content slides with branded template
   data.slides.forEach((slideData, index) => {
     const slide = pptx.addSlide();
     slide.background = { color: colors.background };
 
-    // Header bar
+    // Top accent bar
     slide.addShape(pptx.ShapeType.rect, {
       x: 0,
       y: 0,
       w: "100%",
-      h: 0.5,
+      h: 0.4,
       fill: { color: colors.primary },
     });
 
-    // Slide title
+    // Side accent stripe (golden yellow)
+    slide.addShape(pptx.ShapeType.rect, {
+      x: 0,
+      y: 0.4,
+      w: 0.08,
+      h: 5.225,
+      fill: { color: colors.accent },
+    });
+
+    // Slide title with subtle background
+    slide.addShape(pptx.ShapeType.rect, {
+      x: 0.3,
+      y: 0.6,
+      w: 9.4,
+      h: 0.7,
+      fill: { type: "solid", color: colors.lightGray, transparency: 50 },
+      line: { type: "none" },
+    });
+
     slide.addText(slideData.title, {
       x: 0.5,
-      y: 0.7,
+      y: 0.65,
       w: 9,
       h: 0.6,
-      fontSize: 32,
+      fontSize: 28,
       bold: false,
       fontFace: "Calibri Light",
       color: colors.primary,
+      align: "left",
+      valign: "middle",
     });
 
-    // Content - bullet points
+    // Content - styled bullet points
     if (slideData.content.length > 0) {
-      const bulletText = slideData.content
-        .map((point, idx) => `${idx + 1}. ${point}`)
-        .join("\n\n");
+      // Add bullet points with custom styling
+      slideData.content.forEach((point, idx) => {
+        // Bullet number circle
+        slide.addShape(pptx.ShapeType.ellipse, {
+          x: 0.5,
+          y: 1.6 + (idx * 0.7),
+          w: 0.3,
+          h: 0.3,
+          fill: { color: colors.accent },
+          line: { type: "none" },
+        });
 
-      slide.addText(bulletText, {
-        x: 0.7,
-        y: 1.5,
-        w: 8.6,
-        h: 3.5,
-        fontSize: 18,
-        fontFace: "Calibri",
-        color: colors.text,
-        valign: "top",
-        lineSpacing: 28,
+        // Bullet number
+        slide.addText(`${idx + 1}`, {
+          x: 0.5,
+          y: 1.6 + (idx * 0.7),
+          w: 0.3,
+          h: 0.3,
+          fontSize: 14,
+          bold: true,
+          fontFace: "Calibri",
+          color: "FFFFFF",
+          align: "center",
+          valign: "middle",
+        });
+
+        // Bullet text
+        slide.addText(point, {
+          x: 1.0,
+          y: 1.55 + (idx * 0.7),
+          w: 8.5,
+          h: 0.6,
+          fontSize: 16,
+          fontFace: "Calibri",
+          color: colors.text,
+          valign: "top",
+        });
       });
+    }
+
+    // Healthrise logo (small, bottom right)
+    try {
+      slide.addImage({
+        path: "public/healthrise-logo.png",
+        x: 8.5,
+        y: 5,
+        w: 1.2,
+        h: 0.4,
+        sizing: { type: "contain", w: 1.2, h: 0.4 },
+      });
+    } catch (error) {
+      // Logo not found, skip silently
     }
 
     // Footer with slide number
     if (includeFooter) {
-      slide.addText(`Slide ${index + 1} of ${data.slides.length}`, {
-        x: 8.5,
-        y: 5.2,
-        w: 1.3,
+      slide.addText(`${index + 1} / ${data.slides.length}`, {
+        x: 0.3,
+        y: 5.15,
+        w: 1,
         h: 0.3,
         fontSize: 10,
         fontFace: "Calibri",
         color: colors.secondary,
-        align: "right",
+        align: "left",
       });
     }
 
-    // Add speaker notes if provided
+    // Add speaker notes with source citations if provided
     if (slideData.notes) {
       slide.addNotes(slideData.notes);
     }
