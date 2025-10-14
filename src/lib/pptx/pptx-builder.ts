@@ -42,14 +42,17 @@ export async function generatePPTX(
   pptx.subject = data.title;
   pptx.title = data.title;
 
-  // Define theme colors and styles
+  // Define theme colors and styles - Extracted from actual Healthrise branded slides
   const themes = {
     healthrise: {
-      primary: "0066CC", // Healthrise blue
-      secondary: "00A3E0",
+      primary: "101D41", // Dark Navy Blue (from actual Healthrise theme)
+      secondary: "92B2BB", // Muted Blue-Gray
       text: "333333",
       background: "FFFFFF",
-      accent: "FF6B35",
+      accent: "FBB03B", // Golden/Orange Yellow
+      teal: "205956", // Teal accent
+      lightMint: "CDEAE3", // Light Mint
+      lightGray: "E7F0F1", // Very Light Blue-Gray
     },
     light: {
       primary: "4A90E2",
@@ -97,7 +100,8 @@ export async function generatePPTX(
     w: 9,
     h: 1.5,
     fontSize: 44,
-    bold: true,
+    bold: false,
+    fontFace: "Calibri Light",
     color: colors.primary,
     align: "center",
     valign: "middle",
@@ -111,7 +115,8 @@ export async function generatePPTX(
       w: 9,
       h: 0.5,
       fontSize: 24,
-      color: colors.text,
+      fontFace: "Calibri",
+      color: colors.secondary,
       align: "center",
       valign: "middle",
     });
@@ -130,7 +135,8 @@ export async function generatePPTX(
       w: 9,
       h: 0.3,
       fontSize: 12,
-      color: colors.text,
+      fontFace: "Calibri",
+      color: colors.secondary,
       align: "center",
       valign: "bottom",
     });
@@ -157,7 +163,8 @@ export async function generatePPTX(
       w: 9,
       h: 0.6,
       fontSize: 32,
-      bold: true,
+      bold: false,
+      fontFace: "Calibri Light",
       color: colors.primary,
     });
 
@@ -173,6 +180,7 @@ export async function generatePPTX(
         w: 8.6,
         h: 3.5,
         fontSize: 18,
+        fontFace: "Calibri",
         color: colors.text,
         valign: "top",
         lineSpacing: 28,
@@ -187,7 +195,8 @@ export async function generatePPTX(
         w: 1.3,
         h: 0.3,
         fontSize: 10,
-        color: colors.text,
+        fontFace: "Calibri",
+        color: colors.secondary,
         align: "right",
       });
     }

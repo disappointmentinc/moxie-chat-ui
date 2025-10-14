@@ -30,7 +30,12 @@ export async function POST(request: Request) {
     }
 
     const body: GeneratePPTXRequest = await request.json();
-    const { prompt, useRAG = true, theme = "healthrise", maxSlides = 10 } = body;
+    const {
+      prompt,
+      useRAG = true,
+      theme = "healthrise",
+      maxSlides = 10,
+    } = body;
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return NextResponse.json(
@@ -58,9 +63,7 @@ export async function POST(request: Request) {
             )
             .join("\n\n");
 
-          logger.info(
-            `Found ${ragResults.length} relevant documents from RAG`,
-          );
+          logger.info(`Found ${ragResults.length} relevant documents from RAG`);
         } else {
           logger.info("No relevant documents found in RAG");
         }
@@ -75,8 +78,8 @@ export async function POST(request: Request) {
 The presentation should:
 - Have a clear title and optional subtitle
 - Include ${maxSlides} content slides (excluding title slide)
-- Each slide should have a title and 3-5 bullet points
-- Content should be clear, concise, and actionable
+- Each slide should have a title, topic relevant content and/or 3-5 bullet points 
+- Content should be clear, on brand topic and actionable
 - Use professional language appropriate for business presentations
 
 ${contextContent ? "Use the provided context from uploaded documents to inform your content. Cite sources where appropriate." : "Generate content based on the user's prompt."}
@@ -101,7 +104,7 @@ Return ONLY valid JSON in this exact format:
     logger.info("Calling AI to generate presentation structure");
 
     const { text } = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: openai("gpt-5"), // Upgraded from gpt-4o-mini for better content quality
       system: systemPrompt,
       prompt: userPrompt,
       temperature: 0.7,
