@@ -196,12 +196,25 @@ REQUIRED JSON FORMAT (return ONLY valid JSON, no additional text):
 
     logger.info("Calling AI to generate presentation structure");
 
-    const { text } = await generateText({
-      model: openai("gpt-5"), // High-quality model for presentation generation
-      system: systemPrompt,
-      prompt: userPrompt,
-      temperature: 0.7,
-    });
+    let text: string;
+    try {
+      const result = await generateText({
+        model: openai("gpt-5"), // GPT-5 model for presentation generation
+        system: systemPrompt,
+        prompt: userPrompt,
+        temperature: 0.7,
+      });
+      text = result.text;
+    } catch (aiError) {
+      logger.error("AI generation failed:", aiError);
+      return NextResponse.json(
+        {
+          error: "Failed to call AI model",
+          details: aiError instanceof Error ? aiError.message : "Unknown AI error",
+        },
+        { status: 500 },
+      );
+    }
 
     // Step 3: Parse AI response and validate
     logger.info("Parsing AI response");

@@ -433,7 +433,10 @@ export default function PromptInput({
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || "Failed to generate presentation");
+        const errorMessage = errorData.details
+          ? `${errorData.error}: ${errorData.details}`
+          : errorData.error || "Failed to generate presentation";
+        throw new Error(errorMessage);
       }
 
       const data = await response.json();
