@@ -118,10 +118,18 @@ export function useFileUpload() {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ filename, contentType }),
+          }).catch((err) => {
+            console.error("Failed to fetch upload URL:", err);
+            toast.error(`Network error: ${err.message}`);
+            throw err;
           });
 
           if (!uploadUrlResponse.ok) {
             const errorBody = await uploadUrlResponse.json().catch(() => ({}));
+            console.error("Upload URL request failed:", {
+              status: uploadUrlResponse.status,
+              errorBody,
+            });
 
             // Display detailed error with solution if available
             if (errorBody.solution) {
@@ -136,18 +144,37 @@ export function useFileUpload() {
           }
 
           const uploadUrlData = await uploadUrlResponse.json();
+          console.log("Got upload URL data:", {
+            key: uploadUrlData.key,
+            method: uploadUrlData.method,
+            hasPublicUrl: !!uploadUrlData.publicUrl,
+          });
 
           // Upload to presigned URL
           const uploadResponse = await fetch(uploadUrlData.url, {
             method: uploadUrlData.method || "PUT",
             headers: uploadUrlData.headers || { "Content-Type": contentType },
             body: file,
+          }).catch((err) => {
+            console.error("Failed to upload to presigned URL:", err);
+            toast.error(`Upload network error: ${err.message}`);
+            throw err;
           });
 
           if (!uploadResponse.ok) {
-            toast.error(`Upload failed: ${uploadResponse.status}`);
+            const errorText = await uploadResponse.text().catch(() => "");
+            console.error("Upload to R2 failed:", {
+              status: uploadResponse.status,
+              statusText: uploadResponse.statusText,
+              errorText,
+            });
+            toast.error(
+              `Upload failed: ${uploadResponse.status} ${uploadResponse.statusText}`,
+            );
             return;
           }
+
+          console.log("Upload to R2 successful");
 
           // Use the public URL from the response (where the file is accessible)
           const publicUrl = uploadUrlData.publicUrl || uploadUrlData.url;

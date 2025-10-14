@@ -206,15 +206,56 @@ export default function PromptInput({
       const file = e.target.files?.[0];
       if (!file || !threadId) return;
 
-      // Validate image type
-      if (!file.type.startsWith("image/")) {
-        toast.error(t("pleaseUploadImageFile"));
+      // Validate file type
+      const allowedTypes = [
+        "image/jpeg",
+        "image/jpg",
+        "image/png",
+        "image/webp",
+        "image/svg+xml",
+        "application/pdf",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document", // docx
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation", // pptx
+        "application/vnd.ms-powerpoint", // ppt
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // xlsx
+        "application/vnd.ms-excel", // xls
+        "text/csv",
+      ];
+
+      const fileExtension = file.name.split(".").pop()?.toLowerCase();
+      const allowedExtensions = [
+        "jpg",
+        "jpeg",
+        "png",
+        "webp",
+        "svg",
+        "pdf",
+        "docx",
+        "pptx",
+        "ppt",
+        "xlsx",
+        "xls",
+        "csv",
+      ];
+
+      if (
+        !allowedTypes.includes(file.type) &&
+        !allowedExtensions.includes(fileExtension || "")
+      ) {
+        toast.error(
+          "Please upload a valid file (images, PDF, Word, PowerPoint, Excel, CSV, SVG)",
+        );
         return;
       }
 
-      // Validate file size (10MB limit)
-      if (file.size > 10 * 1024 * 1024) {
-        toast.error(t("imageSizeMustBeLessThan10MB"));
+      // Validate file size (20MB limit for documents, 10MB for images)
+      const maxSize = file.type.startsWith("image/")
+        ? 10 * 1024 * 1024
+        : 20 * 1024 * 1024;
+      if (file.size > maxSize) {
+        toast.error(
+          `File size must be less than ${file.type.startsWith("image/") ? "10MB" : "20MB"}`,
+        );
         return;
       }
 
@@ -267,7 +308,7 @@ export default function PromptInput({
             },
           }));
 
-          toast.success(t("imageUploadedSuccessfully"));
+          toast.success("File uploaded successfully");
         } else {
           // Failed to upload - remove the file
           appStoreMutate((prev) => ({
@@ -551,7 +592,7 @@ export default function PromptInput({
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept="image/*"
+                  accept=".docx,.pptx,.pdf,.ppt,.xlsx,.csv,.xls,.svg,.jpeg,.jpg,.png,.webp,image/*,application/pdf,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-powerpoint,application/vnd.openxmlformats-officedocument.presentationml.presentation,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/csv"
                   className="hidden"
                   onChange={handleFileSelect}
                   disabled={!threadId}
@@ -578,7 +619,7 @@ export default function PromptInput({
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <PaperclipIcon className="mr-2 size-4" />
-                      {t("uploadImage")}
+                      Upload file
                     </DropdownMenuItem>
 
                     <DropdownMenuSub>
