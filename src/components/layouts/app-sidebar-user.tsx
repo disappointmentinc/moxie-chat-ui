@@ -111,7 +111,7 @@ export function AppSidebarUserInner(props: {
     }
   }, []);
 
-  const userAvatar = useMemo(() => getUserAvatar(user), [user]);
+  const userAvatar = useMemo(() => user ? getUserAvatar(user) : "/pf.png", [user]);
   const shouldUseLottie = !user?.image || userAvatar === "/profile-avatar.png";
 
   if (!user) return null;
@@ -177,7 +177,7 @@ export function AppSidebarUserInner(props: {
             </DropdownMenuItem>
             <DropdownMenuItem
               className="cursor-pointer"
-              onClick={() => appStoreMutate({ openCommandPalette: true })}
+              onClick={() => appStoreMutate({ openShortcutsPopup: true })}
             >
               <Command className="size-4 text-foreground" />
               <span>{t("keyboardShortcuts")}</span>

@@ -105,7 +105,7 @@ export const isToolCallUnsupportedModel = (model: LanguageModel) => {
 };
 
 const isImageInputUnsupportedModel = (model: LanguageModel) => {
-  return !Object.values(staticSupportImageInputModels).includes(model);
+  return !(Object.values(staticSupportImageInputModels) as LanguageModel[]).includes(model);
 };
 
 // Default to GPT-5 to match local expectations
