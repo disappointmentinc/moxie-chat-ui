@@ -1,7 +1,7 @@
 import "server-only";
 
 import { RecursiveCharacterTextSplitter } from "langchain/text_splitter";
-import pdfParse from "pdf-parse";
+import * as pdfParse from "pdf-parse";
 import mammoth from "mammoth";
 import { serverFileStorage } from "lib/file-storage";
 import { generateUUID } from "lib/utils";
@@ -51,7 +51,7 @@ export async function processDocument(
   try {
     if (metadata.contentType === "application/pdf") {
       logger.info(`Extracting text from PDF: ${fileKey}`);
-      const pdfData = await pdfParse(buffer);
+      const pdfData = await (pdfParse as any).default(buffer);
       text = pdfData.text;
     } else if (
       metadata.contentType ===

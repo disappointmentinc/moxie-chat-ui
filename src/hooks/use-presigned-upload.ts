@@ -149,9 +149,12 @@ export function useFileUpload() {
             return;
           }
 
+          // Use the public URL from the response (where the file is accessible)
+          const publicUrl = uploadUrlData.publicUrl || uploadUrlData.url;
+
           return {
             pathname: uploadUrlData.key,
-            url: uploadUrlData.url,
+            url: publicUrl,
             contentType,
             size: file.size,
           };

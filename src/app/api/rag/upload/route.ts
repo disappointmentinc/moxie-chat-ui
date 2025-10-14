@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { processDocument, isSupportedFileType } from "lib/rag/document-processor";
 import { indexDocuments } from "lib/rag/vectorize-store";
 import { serverFileStorage } from "lib/file-storage";
-import { auth } from "lib/auth";
+import { getSession } from "auth/server";
 import logger from "logger";
 
 /**
@@ -28,8 +28,8 @@ import logger from "logger";
 export async function POST(request: Request) {
   try {
     // 1. Check authentication
-    const session = await auth();
-    if (!session?.user) {
+    const session = await getSession();
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 },

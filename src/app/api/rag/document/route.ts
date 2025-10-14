@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { deleteVectorsByFileKey } from "lib/rag/vectorize-store";
-import { auth } from "lib/auth";
+import { getSession } from "auth/server";
 import logger from "logger";
 
 /**
@@ -21,8 +21,8 @@ import logger from "logger";
 export async function DELETE(request: Request) {
   try {
     // 1. Check authentication
-    const session = await auth();
-    if (!session?.user) {
+    const session = await getSession();
+    if (!session?.user?.id) {
       return NextResponse.json(
         { error: "Unauthorized" },
         { status: 401 },

@@ -153,6 +153,7 @@ export const createS3FileStorage = (): FileStorage => {
       return {
         key,
         url,
+        publicUrl: getPublicUrl(key), // Add public URL for client
         method: "PUT",
         expiresAt: new Date(Date.now() + expiresIn * 1000),
         headers: {

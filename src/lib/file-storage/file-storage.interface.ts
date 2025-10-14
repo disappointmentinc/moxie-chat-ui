@@ -36,7 +36,8 @@ export type UploadUrlMethod = "PUT" | "POST";
 
 export interface UploadUrl {
   key: string;
-  url: string;
+  url: string; // Presigned URL for uploading
+  publicUrl?: string; // Public URL where file will be accessible after upload
   method: UploadUrlMethod;
   expiresAt: Date;
   headers?: Record<string, string>;
