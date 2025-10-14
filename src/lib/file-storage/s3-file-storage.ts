@@ -53,8 +53,13 @@ export const createS3FileStorage = (): FileStorage => {
     );
   }
 
-  // Cloudflare R2 endpoint
+  // Cloudflare R2 endpoint - MUST use account ID, not access key
   const endpoint = `https://${ACCOUNT_ID}.r2.cloudflarestorage.com`;
+
+  // Log to verify correct endpoint
+  logger.info(
+    `Initializing R2 storage: accountId=${ACCOUNT_ID}, bucket=${BUCKET_NAME}, endpoint=${endpoint}`,
+  );
 
   const client = new S3Client({
     region: "auto", // R2 doesn't use regions, but the SDK requires this
@@ -64,11 +69,11 @@ export const createS3FileStorage = (): FileStorage => {
       secretAccessKey: SECRET_ACCESS_KEY,
     },
     forcePathStyle: true, // Required for R2 - uses path-style URLs instead of virtual-hosted-style
+    // Explicitly disable virtual hosting
+    bucketEndpoint: false,
   });
 
-  logger.info(
-    `Initialized Cloudflare R2 storage: bucket=${BUCKET_NAME}, endpoint=${endpoint}`,
-  );
+  logger.info(`R2 client initialized successfully`);
 
   const buildKey = (filename: string) => {
     const safeName = sanitizeFilename(filename);
