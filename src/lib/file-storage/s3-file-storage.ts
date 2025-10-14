@@ -63,6 +63,7 @@ export const createS3FileStorage = (): FileStorage => {
       accessKeyId: ACCESS_KEY_ID,
       secretAccessKey: SECRET_ACCESS_KEY,
     },
+    forcePathStyle: true, // Required for R2 - uses path-style URLs instead of virtual-hosted-style
   });
 
   logger.info(
