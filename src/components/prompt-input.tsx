@@ -426,7 +426,7 @@ export default function PromptInput({
           prompt: pptxPrompt,
           useRAG: true,
           theme: "healthrise",
-          maxSlides: 8,
+          maxSlides: 20,
           chatContext,
         }),
       });
@@ -985,7 +985,7 @@ ${data.metadata.ragEnabled && data.metadata.ragChunksUsed > 0 ? 'The presentatio
             </div>
             <div className="text-sm text-muted-foreground">
               The AI will search your uploaded documents for relevant content
-              and create a {8}-slide presentation.
+              and create a presentation with up to 20 slides.
             </div>
           </div>
           <DialogFooter>

@@ -2,6 +2,7 @@ import "server-only";
 
 import pptxgen from "pptxgenjs";
 import logger from "logger";
+import path from "path";
 
 export interface PresentationSlide {
   title: string;
@@ -145,8 +146,9 @@ export async function generatePPTX(
 
   // Healthrise logo (bottom right)
   try {
+    const logoPath = path.join(process.cwd(), "public", "healthrise-logo.png");
     titleSlide.addImage({
-      path: "public/healthrise-logo.png",
+      path: logoPath,
       x: 7.5,
       y: 4.5,
       w: 2,
@@ -266,8 +268,9 @@ export async function generatePPTX(
 
     // Healthrise logo (small, bottom right)
     try {
+      const logoPath = path.join(process.cwd(), "public", "healthrise-logo.png");
       slide.addImage({
-        path: "public/healthrise-logo.png",
+        path: logoPath,
         x: 8.5,
         y: 5,
         w: 1.2,

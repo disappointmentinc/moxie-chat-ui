@@ -35,7 +35,7 @@ export async function POST(request: Request) {
       prompt,
       useRAG = true,
       theme = "healthrise",
-      maxSlides = 10,
+      maxSlides = 20,
       chatContext = [],
     } = body;
 
@@ -57,7 +57,9 @@ export async function POST(request: Request) {
 
     if (useRAG) {
       try {
-        logger.info(`Searching RAG with multi-query expansion for: "${prompt}"`);
+        logger.info(
+          `Searching RAG with multi-query expansion for: "${prompt}"`,
+        );
 
         // Multi-query expansion: Generate alternative search queries
         const queryVariants = [
@@ -69,21 +71,21 @@ export async function POST(request: Request) {
 
         // Search with all query variants and collect results
         const allResults = await Promise.all(
-          queryVariants.map(query => searchDocuments(query, 5))
+          queryVariants.map((query) => searchDocuments(query, 5)),
         );
 
         // Flatten and deduplicate results by chunk ID
         const seenChunks = new Set<string>();
         const uniqueResults = allResults
           .flat()
-          .filter(result => {
+          .filter((result) => {
             const chunkId = `${result.metadata.filename}-${result.text.substring(0, 50)}`;
             if (seenChunks.has(chunkId)) return false;
             seenChunks.add(chunkId);
             return true;
           })
           // Apply relevance threshold (only high-confidence results)
-          .filter(result => result.score >= 0.65)
+          .filter((result) => result.score >= 0.65)
           // Sort by relevance score
           .sort((a, b) => b.score - a.score)
           // Take top 15 most relevant
@@ -91,19 +93,25 @@ export async function POST(request: Request) {
 
         if (uniqueResults.length > 0) {
           // Group results by source file for better organization
-          const resultsBySource = uniqueResults.reduce((acc, result) => {
-            const filename = result.metadata.filename || "Unknown";
-            if (!acc[filename]) acc[filename] = [];
-            acc[filename].push(result);
-            ragSources.add(filename);
-            return acc;
-          }, {} as Record<string, typeof uniqueResults>);
+          const resultsBySource = uniqueResults.reduce(
+            (acc, result) => {
+              const filename = result.metadata.filename || "Unknown";
+              if (!acc[filename]) acc[filename] = [];
+              acc[filename].push(result);
+              ragSources.add(filename);
+              return acc;
+            },
+            {} as Record<string, typeof uniqueResults>,
+          );
 
           // Format context with source grouping
           contextContent = Object.entries(resultsBySource)
             .map(([filename, results]) => {
               const chunks = results
-                .map((r, i) => `  [Chunk ${i + 1}] (Relevance: ${(r.score * 100).toFixed(0)}%)\n  ${r.text}`)
+                .map(
+                  (r, i) =>
+                    `  [Chunk ${i + 1}] (Relevance: ${(r.score * 100).toFixed(0)}%)\n  ${r.text}`,
+                )
                 .join("\n\n");
               return `## Source: ${filename}\n\n${chunks}`;
             })
@@ -111,10 +119,12 @@ export async function POST(request: Request) {
 
           ragResultsCount = uniqueResults.length;
           logger.info(
-            `Found ${ragResultsCount} relevant chunks from ${ragSources.size} source files (after deduplication and filtering)`
+            `Found ${ragResultsCount} relevant chunks from ${ragSources.size} source files (after deduplication and filtering)`,
           );
         } else {
-          logger.info("No high-confidence documents found in RAG (threshold: 0.65)");
+          logger.info(
+            "No high-confidence documents found in RAG (threshold: 0.65)",
+          );
         }
       } catch (error) {
         logger.warn("RAG search failed, continuing without context:", error);
@@ -134,7 +144,9 @@ PRESENTATION REQUIREMENTS:
 - Use professional business language
 - Make content actionable and audience-focused
 
-${contextContent ? `KNOWLEDGE BASE CONTEXT:
+${
+  contextContent
+    ? `KNOWLEDGE BASE CONTEXT:
 You have access to ${ragResultsCount} relevant document chunks from ${ragSources.size} source files. Use this information to create data-driven, well-researched content.
 
 CONTENT GUIDELINES:
@@ -145,12 +157,13 @@ CONTENT GUIDELINES:
 5. Use diverse sources to provide comprehensive coverage
 6. Add speaker notes with additional context and full source citations
 
-The provided context is organized by source file. Pay attention to relevance scores - higher scores indicate more relevant content.` :
-`GENERAL KNOWLEDGE MODE:
+The provided context is organized by source file. Pay attention to relevance scores - higher scores indicate more relevant content.`
+    : `GENERAL KNOWLEDGE MODE:
 Create presentation based on your general knowledge about the topic. Focus on:
 - Industry best practices and common frameworks
 - Key concepts and foundational information
-- Practical recommendations and actionable insights`}
+- Practical recommendations and actionable insights`
+}
 
 REQUIRED JSON FORMAT (return ONLY valid JSON, no additional text):
 {
@@ -171,8 +184,8 @@ REQUIRED JSON FORMAT (return ONLY valid JSON, no additional text):
     // Add chat conversation context if available
     if (chatContext && chatContext.length > 0) {
       const conversationSummary = chatContext
-        .map(msg => `${msg.role.toUpperCase()}: ${msg.content}`)
-        .join('\n');
+        .map((msg) => `${msg.role.toUpperCase()}: ${msg.content}`)
+        .join("\n");
       userPrompt += `\n\n## Conversation Context\n\nHere's the recent conversation that provides context for this presentation request:\n\n${conversationSummary}`;
     }
 
@@ -184,7 +197,7 @@ REQUIRED JSON FORMAT (return ONLY valid JSON, no additional text):
     logger.info("Calling AI to generate presentation structure");
 
     const { text } = await generateText({
-      model: openai("gpt-5"), // Upgraded from gpt-4o-mini for better content quality
+      model: openai("gpt-5"), // High-quality model for presentation generation
       system: systemPrompt,
       prompt: userPrompt,
       temperature: 0.7,
