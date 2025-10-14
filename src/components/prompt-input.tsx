@@ -422,25 +422,27 @@ export default function PromptInput({
 
       const data = await response.json();
 
-      // Add generated PPTX to uploaded files
-      const fileId = generateUUID();
-      const pptxFile: UploadedFile = {
-        id: fileId,
-        url: data.url,
-        name: data.filename,
-        mimeType:
-          "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        size: data.metadata.size,
-        isUploading: false,
-        progress: 100,
-      };
+      // Send download link as a message
+      const downloadMessage = `✅ **Presentation Generated!**
 
-      appStoreMutate((prev) => ({
-        threadFiles: {
-          ...prev.threadFiles,
-          [threadId]: [...(prev.threadFiles[threadId] ?? []), pptxFile],
-        },
-      }));
+**Title:** ${data.metadata.title}
+**Slides:** ${data.metadata.slideCount} slides
+**Theme:** Healthrise branded
+
+📥 [Download ${data.filename}](${data.url})
+
+The presentation was created using content from your uploaded documents.`;
+
+      // Send as a system message (append to chat)
+      sendMessage({
+        role: "user",
+        parts: [
+          {
+            type: "text",
+            text: downloadMessage,
+          },
+        ],
+      });
 
       toast.success(
         `Presentation generated! ${data.metadata.slideCount} slides created.`,
