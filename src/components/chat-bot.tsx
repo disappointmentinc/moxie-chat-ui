@@ -72,6 +72,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
     appStoreMutate,
     model,
     toolChoice,
+    useRAG,
     allowedAppDefaultToolkit,
     allowedMcpServers,
     threadList,
@@ -83,6 +84,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
       state.mutate,
       state.chatModel,
       state.toolChoice,
+      state.useRAG,
       state.allowedAppDefaultToolkit,
       state.allowedMcpServers,
       state.threadList,
@@ -153,6 +155,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
           chatModel:
             (body as { model: ChatModel })?.model ?? latestRef.current.model,
           toolChoice: latestRef.current.toolChoice,
+          useRAG: latestRef.current.useRAG,
           allowedAppDefaultToolkit: latestRef.current.mentions?.length
             ? []
             : latestRef.current.allowedAppDefaultToolkit,
@@ -187,6 +190,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
 
   const latestRef = useToRef({
     toolChoice,
+    useRAG,
     model,
     allowedAppDefaultToolkit,
     allowedMcpServers,

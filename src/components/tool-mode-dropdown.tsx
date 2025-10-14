@@ -10,6 +10,7 @@ import {
   Check,
   CheckIcon,
   ClipboardCheck,
+  Database,
   Infinity,
   PenOff,
   Settings2,
@@ -38,8 +39,8 @@ const debounce = createDebounce();
 
 export const ToolModeDropdown = ({ disabled }: { disabled?: boolean }) => {
   const t = useTranslations("Chat.Tool");
-  const [toolChoice, appStoreMutate] = appStore(
-    useShallow((state) => [state.toolChoice, state.mutate]),
+  const [toolChoice, useRAG, appStoreMutate] = appStore(
+    useShallow((state) => [state.toolChoice, state.useRAG, state.mutate]),
   );
   const [open, setOpen] = useState(false);
 
@@ -168,6 +169,23 @@ export const ToolModeDropdown = ({ disabled }: { disabled?: boolean }) => {
 
               <p className="text-xs text-muted-foreground">
                 {t("noneToolModeDescription")}
+              </p>
+            </div>
+          </DropdownMenuItem>
+          <div className="px-2 py-1">
+            <DropdownMenuSeparator />
+          </div>
+          <DropdownMenuItem
+            onClick={() => appStoreMutate({ useRAG: !useRAG })}
+          >
+            <div className="flex flex-col gap-2 w-full">
+              <div className="flex items-center gap-2">
+                <Database />
+                <span className="font-bold">RAG Search</span>
+                {useRAG && <Check className="ml-auto" />}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Enable knowledge base search to inform responses with uploaded documents
               </p>
             </div>
           </DropdownMenuItem>

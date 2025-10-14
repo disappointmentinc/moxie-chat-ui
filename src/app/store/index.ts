@@ -47,6 +47,7 @@ export interface AppState {
     name: string;
   }[];
   chatModel?: ChatModel;
+  useRAG: boolean; // Toggle for RAG-informed responses
   openShortcutsPopup: boolean;
   openChatPreferences: boolean;
   openUserSettings: boolean;
@@ -91,6 +92,7 @@ const initialState: AppState = {
   ],
   toolPresets: [],
   chatModel: undefined,
+  useRAG: false, // RAG disabled by default
   openShortcutsPopup: false,
   openChatPreferences: false,
   mcpCustomizationPopup: undefined,
@@ -121,6 +123,7 @@ export const appStore = create<AppState & AppDispatch>()(
       partialize: (state) => ({
         chatModel: state.chatModel || initialState.chatModel,
         toolChoice: state.toolChoice || initialState.toolChoice,
+        useRAG: state.useRAG ?? initialState.useRAG,
         allowedMcpServers:
           state.allowedMcpServers || initialState.allowedMcpServers,
         allowedAppDefaultToolkit: (

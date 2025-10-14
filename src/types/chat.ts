@@ -98,6 +98,7 @@ export const chatApiSchemaRequestBodySchema = z.object({
   imageTool: z.object({ model: z.string().optional() }).optional(),
   allowedMcpServers: z.record(z.string(), AllowedMCPServerZodSchema).optional(),
   allowedAppDefaultToolkit: z.array(z.string()).optional(),
+  useRAG: z.boolean().optional(), // Enable RAG-informed responses
 });
 
 export type ChatApiSchemaRequestBody = z.infer<

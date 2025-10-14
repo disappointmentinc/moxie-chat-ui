@@ -49,6 +49,7 @@ import { colorize } from "consola/utils";
 import { generateUUID } from "lib/utils";
 import { nanoBananaTool, openaiImageTool } from "lib/ai/tools/image";
 import { ImageToolName } from "lib/ai/tools";
+import { searchDocuments } from "lib/rag/vectorize-store";
 
 const logger = globalLogger.withDefaults({
   message: colorize("blackBright", `Chat API: `),
@@ -72,6 +73,7 @@ export async function POST(request: Request) {
       allowedMcpServers,
       imageTool,
       mentions = [],
+      useRAG = false,
     } = chatApiSchemaRequestBodySchema.parse(json);
 
     const model = customModelProvider.getModel(chatModel);
@@ -193,6 +195,37 @@ export async function POST(request: Request) {
 
         const userPreferences = thread?.userPreferences || undefined;
 
+        // RAG: Search for relevant documents if enabled
+        let ragContext = "";
+        if (useRAG) {
+          try {
+            // Extract text content from the last user message
+            const lastUserMessage = message.parts
+              .filter((part: any) => part.type === "text")
+              .map((part: any) => part.text)
+              .join(" ");
+
+            if (lastUserMessage.trim()) {
+              logger.info(`RAG search enabled, querying: "${lastUserMessage.substring(0, 100)}..."`);
+              const ragResults = await searchDocuments(lastUserMessage, 5);
+
+              if (ragResults.length > 0) {
+                ragContext = `\n\n## Relevant Context from Knowledge Base\n\nThe following information was retrieved from uploaded documents to help inform your response:\n\n${ragResults
+                  .map(
+                    (result, i) =>
+                      `### Source ${i + 1}: ${result.metadata.filename} (Relevance: ${(result.score * 100).toFixed(0)}%)\n${result.text}`,
+                  )
+                  .join("\n\n---\n\n")}\n\n## Instructions\n- Use the above context to provide accurate, well-informed responses\n- Cite sources when referencing specific information\n- If the context doesn't contain relevant information, respond based on your general knowledge\n`;
+                logger.info(`Found ${ragResults.length} relevant documents from RAG`);
+              } else {
+                logger.info("No relevant documents found in RAG");
+              }
+            }
+          } catch (error) {
+            logger.warn("RAG search failed, continuing without context:", error);
+          }
+        }
+
         const mcpServerCustomizations = await safe()
           .map(() => {
             if (Object.keys(MCP_TOOLS ?? {}).length === 0)
@@ -206,6 +239,7 @@ export async function POST(request: Request) {
           buildUserSystemPrompt(session.user, userPreferences, agent),
           buildMcpServerCustomizationsSystemPrompt(mcpServerCustomizations),
           !supportToolCall && buildToolCallUnsupportedModelSystemPrompt,
+          ragContext, // Add RAG context to system prompt
         );
 
         const IMAGE_TOOL: Record<string, Tool> = useImageTool
