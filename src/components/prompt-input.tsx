@@ -65,6 +65,10 @@ import { EMOJI_DATA } from "lib/const";
 import { AgentSummary } from "app-types/agent";
 import { FileUIPart } from "ai";
 import { useChatModels } from "@/hooks/queries/use-chat-models";
+import {
+  PPTXGenerationProgressDialog,
+  type PPTXGenerationProgress,
+} from "./pptx-generation-progress-dialog";
 
 interface PromptInputProps {
   placeholder?: string;
@@ -111,6 +115,12 @@ export default function PromptInput({
   const [isPPTXDialogOpen, setIsPPTXDialogOpen] = useState(false);
   const [pptxPrompt, setPptxPrompt] = useState("");
   const [isGeneratingPPTX, setIsGeneratingPPTX] = useState(false);
+  const [pptxProgress, setPptxProgress] = useState<PPTXGenerationProgress>({
+    stage: "searching",
+    progress: 0,
+    message: "Initializing...",
+  });
+  const [showProgressDialog, setShowProgressDialog] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { upload } = useFileUpload();
   const { data: providers } = useChatModels();
@@ -402,9 +412,16 @@ export default function PromptInput({
 
     setIsGeneratingPPTX(true);
     setIsPPTXDialogOpen(false);
+    setShowProgressDialog(true);
+
+    // Simulated progress helper
+    const updateProgress = (stage: PPTXGenerationProgress["stage"], progress: number, message: string) => {
+      setPptxProgress({ stage, progress, message });
+    };
 
     try {
-      toast.info("Generating presentation...", { duration: 2000 });
+      // Stage 1: Searching (0-25%)
+      updateProgress("searching", 5, "Searching uploaded documents for relevant content...");
 
       // Extract recent chat context (last 10 messages, excluding system messages)
       const chatContext = messages
@@ -418,6 +435,15 @@ export default function PromptInput({
             .join(' ')
         }))
         .filter(msg => msg.content.trim().length > 0);
+
+      updateProgress("searching", 15, "Analyzing document relevance...");
+
+      // Small delay to show searching stage
+      await new Promise(resolve => setTimeout(resolve, 500));
+      updateProgress("searching", 25, "Retrieved relevant information from documents");
+
+      // Stage 2: Generating (25-60%)
+      updateProgress("generating", 30, "Generating presentation structure with AI...");
 
       const response = await fetch("/api/generate-pptx", {
         method: "POST",
@@ -439,47 +465,64 @@ export default function PromptInput({
         throw new Error(errorMessage);
       }
 
+      updateProgress("generating", 55, "AI is creating slide content...");
+
       const data = await response.json();
 
-      // Send download link as a message with RAG stats
-      const ragInfo = data.metadata.ragEnabled && data.metadata.ragChunksUsed > 0
-        ? `\n**Knowledge Base:** Used ${data.metadata.ragChunksUsed} relevant chunks from ${data.metadata.ragSourcesUsed} source file${data.metadata.ragSourcesUsed !== 1 ? 's' : ''}\n**Sources:** ${data.metadata.ragSources.join(', ')}`
-        : '';
+      // Stage 3: Creating (60-85%)
+      updateProgress("creating", 65, "Building presentation from template...");
+      await new Promise(resolve => setTimeout(resolve, 300));
+      updateProgress("creating", 75, `Creating ${data.metadata.slideCount} slides with template styling...`);
+      await new Promise(resolve => setTimeout(resolve, 300));
+      updateProgress("creating", 85, "Finalizing presentation layout...");
 
-      const downloadMessage = `✅ **Presentation Generated!**
+      // Stage 4: Uploading (85-100%)
+      updateProgress("uploading", 90, "Uploading presentation to cloud storage...");
+      await new Promise(resolve => setTimeout(resolve, 200));
+      updateProgress("uploading", 95, "Almost done...");
 
-**Title:** ${data.metadata.title}
-**Slides:** ${data.metadata.slideCount} slides
-**Theme:** Healthrise branded${ragInfo}
+      // Stage 5: Complete
+      updateProgress("complete", 100, "Presentation ready for download!");
 
-📥 [Download ${data.filename}](${data.url})
-
-${data.metadata.ragEnabled && data.metadata.ragChunksUsed > 0 ? 'The presentation includes data-driven content with source citations in speaker notes.' : 'The presentation was created based on general knowledge.'}`;
-
-      // Send as a system message (append to chat)
-      sendMessage({
-        role: "user",
-        parts: [
-          {
-            type: "text",
-            text: downloadMessage,
-          },
-        ],
+      setPptxProgress({
+        stage: "complete",
+        progress: 100,
+        message: "Your presentation is ready!",
+        downloadUrl: data.url,
+        filename: data.filename,
+        metadata: {
+          title: data.metadata.title,
+          slideCount: data.metadata.slideCount,
+          ragChunksUsed: data.metadata.ragChunksUsed,
+          ragSourcesUsed: data.metadata.ragSourcesUsed,
+        },
       });
 
-      toast.success(
-        `Presentation generated! ${data.metadata.slideCount} slides created.`,
-      );
+      // Automatically download the file
+      const link = document.createElement('a');
+      link.href = data.url;
+      link.download = data.filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
       setPptxPrompt("");
     } catch (error) {
       console.error("PPTX generation error:", error);
-      toast.error(
-        error instanceof Error ? error.message : "Failed to generate presentation",
-      );
+      const errorMessage = error instanceof Error ? error.message : "Failed to generate presentation";
+      setPptxProgress({
+        stage: "error",
+        progress: 0,
+        message: "Generation failed",
+        error: errorMessage,
+      });
+
+      // Also show toast for visibility
+      toast.error(errorMessage);
     } finally {
       setIsGeneratingPPTX(false);
     }
-  }, [threadId, pptxPrompt, appStoreMutate, messages, sendMessage]);
+  }, [threadId, pptxPrompt, messages]);
 
   const openPPTXDialog = useCallback(() => {
     setIsUploadDropdownOpen(false);
@@ -1018,6 +1061,16 @@ ${data.metadata.ragEnabled && data.metadata.ragChunksUsed > 0 ? 'The presentatio
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* PPTX Generation Progress Dialog */}
+      <PPTXGenerationProgressDialog
+        open={showProgressDialog}
+        onOpenChange={setShowProgressDialog}
+        progress={pptxProgress}
+        onDownload={() => {
+          // Optional: handle download completion
+        }}
+      />
     </div>
   );
 }

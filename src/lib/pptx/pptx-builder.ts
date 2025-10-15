@@ -3,6 +3,7 @@ import "server-only";
 import pptxgen from "pptxgenjs";
 import logger from "logger";
 import path from "path";
+import { generatePPTXFromTemplate } from "./pptx-template-builder";
 
 export interface PresentationSlide {
   title: string;
@@ -20,6 +21,7 @@ export interface PresentationData {
 export interface GeneratePPTXOptions {
   theme?: "light" | "dark" | "healthrise";
   includeFooter?: boolean;
+  useTemplate?: boolean; // Use template__Comp.pptx as base (default: true)
 }
 
 /**
@@ -29,10 +31,19 @@ export async function generatePPTX(
   data: PresentationData,
   options: GeneratePPTXOptions = {},
 ): Promise<Buffer> {
-  const { theme = "healthrise", includeFooter = true } = options;
+  const { theme = "healthrise", includeFooter = true, useTemplate = true } = options;
 
+  // Use template-based generation if enabled (default)
+  if (useTemplate) {
+    logger.info(
+      `Generating PPTX from template: ${data.title} with ${data.slides.length} slides`,
+    );
+    return generatePPTXFromTemplate(data);
+  }
+
+  // Fallback to programmatic generation
   logger.info(
-    `Generating PPTX: ${data.title} with ${data.slides.length} slides`,
+    `Generating PPTX programmatically: ${data.title} with ${data.slides.length} slides`,
   );
 
   const pptx = new pptxgen();
