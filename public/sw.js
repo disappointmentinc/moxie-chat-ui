@@ -1,4 +1,4 @@
-const CACHE_NAME = 'moxie-chat-ui-v2';
+const CACHE_NAME = 'healthrise-velocity-v17';
 const urlsToCache = [
   '/',
   '/manifest.json',
@@ -67,7 +67,7 @@ self.addEventListener('activate', (event) => {
 // Push notification event
 self.addEventListener('push', (event) => {
   const options = {
-    body: event.data ? event.data.text() : 'New message from Moxie Chat',
+    body: event.data ? event.data.text() : 'New message from Healthrise Velocity',
     icon: '/favicon.png',
     badge: '/favicon.png',
     vibrate: [100, 50, 100],
@@ -90,7 +90,7 @@ self.addEventListener('push', (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification('Moxie Chat', options)
+    self.registration.showNotification('Healthrise Velocity', options)
   );
 });
 

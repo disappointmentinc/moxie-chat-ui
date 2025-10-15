@@ -132,6 +132,8 @@ export async function POST(request: Request) {
     }
 
     // Step 2: Generate presentation structure using AI with enhanced instructions
+    const hasConversationContext = chatContext && chatContext.length > 0;
+
     const systemPrompt = `You are a professional presentation designer creating a high-quality business presentation. Your task is to create a well-structured presentation outline in JSON format.
 
 PRESENTATION REQUIREMENTS:
@@ -143,6 +145,19 @@ PRESENTATION REQUIREMENTS:
   * Detailed speaker notes with context and sources
 - Use professional business language
 - Make content actionable and audience-focused
+
+${
+  hasConversationContext
+    ? `⚠️ IMPORTANT - CONVERSATION CONTEXT AVAILABLE:
+The user has been having an ongoing conversation about this topic. The CONVERSATION CONTEXT section below contains the full chat history leading up to this presentation request. This context is CRITICAL for understanding:
+- What the user has already discussed and learned
+- Specific details, requirements, or preferences mentioned
+- Key insights, data, or conclusions from the conversation
+- The user's goals and intended audience for this presentation
+
+YOU MUST carefully read and integrate insights from the conversation context to make this presentation relevant and aligned with what was discussed.`
+    : ""
+}
 
 ${
   contextContent
@@ -165,6 +180,11 @@ Create presentation based on your general knowledge about the topic. Focus on:
 - Practical recommendations and actionable insights`
 }
 
+CONTENT PRIORITY ORDER:
+1. ${hasConversationContext ? "Insights and details from the CONVERSATION CONTEXT (what the user specifically discussed)" : "User's topic request"}
+2. ${contextContent ? "Factual data from KNOWLEDGE BASE documents" : "General knowledge and best practices"}
+3. ${contextContent && hasConversationContext ? "General knowledge to fill gaps" : "Additional context as needed"}
+
 REQUIRED JSON FORMAT (return ONLY valid JSON, no additional text):
 {
   "title": "Presentation Title",
@@ -178,20 +198,23 @@ REQUIRED JSON FORMAT (return ONLY valid JSON, no additional text):
   ]
 }`;
 
-    // Build user prompt with chat context and RAG context
-    let userPrompt = `Create a presentation about: "${prompt}"`;
+    // Build user prompt with chat context FIRST (most important)
+    let userPrompt = "";
 
-    // Add chat conversation context if available
-    if (chatContext && chatContext.length > 0) {
+    // Add chat conversation context FIRST if available (highest priority)
+    if (hasConversationContext) {
       const conversationSummary = chatContext
         .map((msg) => `${msg.role.toUpperCase()}: ${msg.content}`)
         .join("\n");
-      userPrompt += `\n\n## Conversation Context\n\nHere's the recent conversation that provides context for this presentation request:\n\n${conversationSummary}`;
+      userPrompt += `## CONVERSATION CONTEXT (PRIORITY: Read this first!)\n\nThe user has been discussing this topic in detail. Here's the full conversation leading to this presentation request:\n\n${conversationSummary}\n\n`;
+      userPrompt += `Based on this conversation, create a presentation about: "${prompt}"\n\nIMPORTANT: The presentation should reflect the specific details, insights, and direction established in the conversation above.`;
+    } else {
+      userPrompt = `Create a presentation about: "${prompt}"`;
     }
 
-    // Add RAG context if available
+    // Add RAG context if available (second priority)
     if (contextContent) {
-      userPrompt += `\n\n## Relevant Documents from Knowledge Base\n\n${contextContent}`;
+      userPrompt += `\n\n## RELEVANT DOCUMENTS FROM KNOWLEDGE BASE\n\nUse this curated content to support your presentation with data and facts:\n\n${contextContent}`;
     }
 
     logger.info("Calling AI to generate presentation structure");

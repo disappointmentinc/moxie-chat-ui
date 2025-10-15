@@ -39,7 +39,7 @@ export function AppSidebar({
       className="border-r border-sidebar-border/80"
     >
       <SidebarHeaderShared
-        title="Healthrise Velocity"
+        title="Healthrise Velocity 1.7"
         href="/"
         enableShortcuts={true}
         onLinkClick={() => {
@@ -58,7 +58,7 @@ export function AppSidebar({
       <SidebarFooter className="flex flex-col items-stretch space-y-2">
         <AppSidebarUser user={user} />
         <div className="text-[10px] leading-snug text-muted-foreground px-3 pt-1">
-          Healthrise Collateral Retrieval-Augmented Generation Beta v1.6
+          Healthrise Velocity 1.7 - AI-Powered RAG Platform
         </div>
       </SidebarFooter>
     </Sidebar>

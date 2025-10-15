@@ -21,8 +21,8 @@ const aptosMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Velocity RAG Beta 1.2",
-  description: "AI-powered chat interface with advanced features",
+  title: "Velocity | Healthrise Marketing Tools",
+  description: "AI-powered marketing tools with advanced RAG capabilities",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -42,7 +42,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "default",
-    title: "Moxie Chat",
+    title: "Velocity | Healthrise Marketing Tools",
   },
   viewport:
     "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover",
@@ -54,7 +54,7 @@ export const metadata: Metadata = {
     "mobile-web-app-capable": "yes",
     "apple-mobile-web-app-capable": "yes",
     "apple-mobile-web-app-status-bar-style": "default",
-    "apple-mobile-web-app-title": "Moxie Chat",
+    "apple-mobile-web-app-title": "Velocity | Healthrise Marketing Tools",
     "format-detection": "telephone=no",
     "msapplication-TileColor": "#000000",
     "msapplication-TileImage": "/icon-144.png",

@@ -129,8 +129,8 @@ export const PWAManager = () => {
 
   const sendTestNotification = () => {
     if (Notification.permission === "granted") {
-      new Notification("Moxie Chat Test", {
-        body: "This is a test notification from Moxie Chat!",
+      new Notification("Healthrise Velocity 1.7", {
+        body: "This is a test notification from Healthrise Velocity!",
         icon: "/favicon.png",
         badge: "/favicon.png",
       });
