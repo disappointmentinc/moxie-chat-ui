@@ -45,6 +45,7 @@
     "docker:app": "docker build -f docker/Dockerfile -t better-chatbot . && docker run -p 3000:3000 -e NO_HTTPS=1 better-chatbot",
     "prepare": "husky",
     "playwright:install": "playwright install",
+    "pptx:inspect": "tsx scripts/inspect-pptx.ts",
     "check": "pnpm lint:fix && pnpm check-types && pnpm test"
   },
   "dependencies": {

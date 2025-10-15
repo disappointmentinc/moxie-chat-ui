@@ -6,7 +6,8 @@ import { serverFileStorage } from "lib/file-storage";
 import { generateText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import logger from "logger";
-import type { PresentationData } from "lib/pptx/pptx-builder";
+import type { PresentationData, SlideLayoutType } from "lib/pptx/pptx-builder";
+import { verifyPPTXIntegrity } from "lib/pptx/pptx-integrity";
 
 interface GeneratePPTXRequest {
   prompt: string;
@@ -14,7 +15,28 @@ interface GeneratePPTXRequest {
   theme?: "light" | "dark" | "healthrise";
   maxSlides?: number;
   chatContext?: Array<{ role: string; content: string }>; // Recent conversation history
+  preferredLayouts?: SlideLayoutType[];
 }
+
+const ALL_SLIDE_LAYOUTS: SlideLayoutType[] = [
+  "section-break",
+  "bullets",
+  "two-column",
+  "kpi-grid",
+  "quote",
+  "comparison",
+  "timeline",
+];
+
+const LAYOUT_LABELS: Record<SlideLayoutType, string> = {
+  "section-break": "section-break (framing slide)",
+  "bullets": "bullets (core narrative)",
+  "two-column": "two-column (compare/contrast)",
+  "kpi-grid": "kpi-grid (metrics spotlight)",
+  "quote": "quote (testimonial)",
+  "comparison": "comparison (side-by-side findings)",
+  "timeline": "timeline (milestones roadmap)",
+};
 
 /**
  * Generate PPTX presentation using AI and RAG
@@ -37,7 +59,21 @@ export async function POST(request: Request) {
       theme = "healthrise",
       maxSlides = 20,
       chatContext = [],
+      preferredLayouts: preferredLayoutsRaw,
     } = body;
+
+    let preferredLayouts: SlideLayoutType[] = Array.isArray(preferredLayoutsRaw)
+      ? preferredLayoutsRaw.filter((layout): layout is SlideLayoutType =>
+          ALL_SLIDE_LAYOUTS.includes(layout as SlideLayoutType),
+        )
+      : ALL_SLIDE_LAYOUTS;
+
+    if (preferredLayouts.length === 0) {
+      preferredLayouts = ALL_SLIDE_LAYOUTS;
+    }
+    logger.info(
+      `PPTX layout preferences: ${preferredLayouts.join(", ")}.`,
+    );
 
     if (!prompt || typeof prompt !== "string" || prompt.trim().length === 0) {
       return NextResponse.json(
@@ -134,66 +170,106 @@ export async function POST(request: Request) {
     // Step 2: Generate presentation structure using AI with enhanced instructions
     const hasConversationContext = chatContext && chatContext.length > 0;
 
-    const systemPrompt = `You are a professional presentation designer creating a high-quality business presentation. Your task is to create a well-structured presentation outline in JSON format.
+    const allowedLayoutLines = preferredLayouts
+      .map((layout) => `- "${layout}": ${LAYOUT_LABELS[layout]}`)
+      .join("\n");
 
-PRESENTATION REQUIREMENTS:
-- Create a compelling title and subtitle
-- Generate exactly ${maxSlides} content slides (excluding title slide)
-- Each slide should have:
-  * A clear, engaging title
-  * 3-5 concise bullet points OR key data points
-  * Detailed speaker notes with context and sources
-- Use professional business language
-- Make content actionable and audience-focused
+    const systemPrompt = `You are a senior presentation designer tasked with creating a high-impact executive deck. Return a single valid JSON object that describes the entire presentation.
+
+DESIGN OBJECTIVES:
+- Provide a strong title and subtitle that frame the narrative.
+- Build up to ${maxSlides} content slides (excluding the title). Deliver at least five excellent slides unless the topic truly lacks depth.
+- Vary layouts so consecutive slides feel distinct. Use section breaks to introduce major shifts, KPI grids for metrics, and quotes for human impact.
+- Every slide must include persuasive speaker notes that reference source filenames whenever external data is used and explain how the slide ties back to the ongoing conversation with the user.
 
 ${
   hasConversationContext
-    ? `⚠️ IMPORTANT - CONVERSATION CONTEXT AVAILABLE:
-The user has been having an ongoing conversation about this topic. The CONVERSATION CONTEXT section below contains the full chat history leading up to this presentation request. This context is CRITICAL for understanding:
-- What the user has already discussed and learned
-- Specific details, requirements, or preferences mentioned
-- Key insights, data, or conclusions from the conversation
-- The user's goals and intended audience for this presentation
-
-YOU MUST carefully read and integrate insights from the conversation context to make this presentation relevant and aligned with what was discussed.`
+    ? `CONVERSATION CONTEXT IS PROVIDED. Honor all prior constraints, goals, and nuances shared by the user. The conversation is the single source of truth for tone, priorities, and must-have content. Mirror key language and resolve any ambiguities in favor of the user's stated preferences.`
     : ""
 }
 
 ${
   contextContent
-    ? `KNOWLEDGE BASE CONTEXT:
-You have access to ${ragResultsCount} relevant document chunks from ${ragSources.size} source files. Use this information to create data-driven, well-researched content.
-
-CONTENT GUIDELINES:
-1. Prioritize factual information and specific data from the sources
-2. Include statistics, metrics, and concrete examples when available
-3. Cite sources in speaker notes (e.g., "According to [filename]...")
-4. If sources contain data tables or numbers, incorporate them as bullet points
-5. Use diverse sources to provide comprehensive coverage
-6. Add speaker notes with additional context and full source citations
-
-The provided context is organized by source file. Pay attention to relevance scores - higher scores indicate more relevant content.`
-    : `GENERAL KNOWLEDGE MODE:
-Create presentation based on your general knowledge about the topic. Focus on:
-- Industry best practices and common frameworks
-- Key concepts and foundational information
-- Practical recommendations and actionable insights`
+    ? `KNOWLEDGE BASE CONTEXT IS AVAILABLE. When citing data:
+1. Blend knowledge base insights with the user's goals.
+2. Pull exact statistics, trends, or quotes into slides.
+3. Cite sources in speaker notes using the filename (e.g., "Source: revenue-cycle-report.pdf").`
+    : `NO KNOWLEDGE BASE CONTEXT. Use accurate domain expertise, best practices, and actionable recommendations.`
 }
 
-CONTENT PRIORITY ORDER:
-1. ${hasConversationContext ? "Insights and details from the CONVERSATION CONTEXT (what the user specifically discussed)" : "User's topic request"}
-2. ${contextContent ? "Factual data from KNOWLEDGE BASE documents" : "General knowledge and best practices"}
-3. ${contextContent && hasConversationContext ? "General knowledge to fill gaps" : "Additional context as needed"}
+LAYOUT PLAYBOOK (choose the layout that best conveys each idea):
+- "section-break": Introduce a new chapter. Fields: title, optional eyebrow, description, highlights[] (≤4).
+- "bullets": Core explanatory slide. Fields: title, optional eyebrow, bullets[] (3-5), supportingPoints[] (optional), kickerLeft/kickerRight for next steps or owners.
+- "two-column": Comparisons, pro/con analyses, or process vs. outcome. Fields: title, optional eyebrow, leftColumn[], rightColumn[], optional rightTitle.
+- "kpi-grid": Metrics snapshot. Fields: title, summary, metrics[] (≤3 entries with label/value/optional delta/description), footnotes[] (≤2 concise citations).
+- "quote": Testimonial or voice-of-customer. Fields: title, optional eyebrow, quote, attribution, supportingPoints[].
+- "comparison": Side-by-side findings. Fields: title, optional eyebrow, summary, tableTitle, columns[{ title, bullets[] }], optional footnotes[].
+- "timeline": Sequential milestones. Fields: title, summary, milestones[{ date, title, description }], optional footnotes[].
 
-REQUIRED JSON FORMAT (return ONLY valid JSON, no additional text):
+CHOOSE FROM THESE LAYOUT TYPES ONLY (no other layout keys are permitted):
+${allowedLayoutLines}
+
+DATA RULES:
+- Trim arrays to their limits (metrics ≤ 3, highlights ≤ 4, footnotes ≤ 2).
+- Keep text concise but information-dense; avoid filler.
+- Speaker notes must explain why the slide matters, add nuance, and cite sources when relevant.
+- When conversation context exists, each slide's bullets or notes must explicitly reference at least one distinct idea from the conversation so the audience feels the through-line.
+
+RETURN FORMAT (valid JSON only, no commentary or Markdown):
 {
   "title": "Presentation Title",
-  "subtitle": "Optional Subtitle (can be null)",
+  "subtitle": "Optional subtitle or null",
   "slides": [
     {
-      "title": "Slide Title",
-      "content": ["Bullet point 1", "Bullet point 2", "Bullet point 3"],
-      "notes": "Detailed speaker notes with context, explanations, and source citations if applicable"
+      "layout": "section-break",
+      "title": "Section Name",
+      "eyebrow": "Optional tag",
+      "description": "Short paragraph framing the next section",
+      "highlights": ["Key idea", "Another takeaway"],
+      "notes": "Speaker notes with cited sources"
+    },
+    {
+      "layout": "bullets",
+      "title": "Core Topic",
+      "eyebrow": "Optional context",
+      "bullets": ["Primary point", "Supporting point", "Action item"],
+      "supportingPoints": ["Deeper detail or evidence"],
+      "kickerLeft": "Next Step",
+      "kickerRight": "Owner / Date",
+      "notes": "Notes referencing sources where applicable"
+    },
+    {
+      "layout": "kpi-grid",
+      "title": "Performance Snapshot",
+      "summary": "One-line insight framing the KPIs",
+      "metrics": [
+        { "label": "Metric Name", "value": "123%", "delta": "+4%", "description": "Context" }
+      ],
+      "footnotes": ["Source: filename.pdf"],
+      "notes": "Narrative explaining the metrics with citations"
+    },
+    {
+      "layout": "comparison",
+      "title": "Solution Comparison",
+      "summary": "Contrast investment vs. benefit for each option",
+      "columns": [
+        { "title": "Option A", "bullets": ["Strength 1", "Strength 2"] },
+        { "title": "Option B", "bullets": ["Strength 1", "Strength 2"] },
+        { "title": "Option C", "bullets": ["Strength 1", "Strength 2"] }
+      ],
+      "footnotes": ["Source: comparison-report.pdf"],
+      "notes": "Explain when to favor each option and reference sources."
+    },
+    {
+      "layout": "timeline",
+      "title": "Implementation Timeline",
+      "summary": "Roadmap from pilot to enterprise rollout",
+      "milestones": [
+        { "date": "Q1", "title": "Pilot Launch", "description": "Deploy in 2 clinics" },
+        { "date": "Q2", "title": "Scale", "description": "Expand to 10 hospitals" }
+      ],
+      "footnotes": ["Source: rollout-plan.xlsx"],
+      "notes": "Highlight dependencies and reference stakeholder approvals."
     }
   ]
 }`;
@@ -204,10 +280,19 @@ REQUIRED JSON FORMAT (return ONLY valid JSON, no additional text):
     // Add chat conversation context FIRST if available (highest priority)
     if (hasConversationContext) {
       const conversationSummary = chatContext
-        .map((msg) => `${msg.role.toUpperCase()}: ${msg.content}`)
+        .map((msg, index) => `[${index + 1}] ${msg.role.toUpperCase()}: ${msg.content}`)
         .join("\n");
       userPrompt += `## CONVERSATION CONTEXT (PRIORITY: Read this first!)\n\nThe user has been discussing this topic in detail. Here's the full conversation leading to this presentation request:\n\n${conversationSummary}\n\n`;
-      userPrompt += `Based on this conversation, create a presentation about: "${prompt}"\n\nIMPORTANT: The presentation should reflect the specific details, insights, and direction established in the conversation above.`;
+
+      const mostRecentUserMessage = [...chatContext]
+        .reverse()
+        .find((msg) => msg.role === "user");
+
+      if (mostRecentUserMessage) {
+        userPrompt += `## MOST RECENT USER REQUEST (DO NOT IGNORE)\n${mostRecentUserMessage.content.trim()}\n\n`;
+      }
+
+      userPrompt += `Based on this conversation, create a presentation about: "${prompt}"\n\nIMPORTANT: Explicitly tie each slide back to the conversation details above.`;
     } else {
       userPrompt = `Create a presentation about: "${prompt}"`;
     }
@@ -279,6 +364,10 @@ REQUIRED JSON FORMAT (return ONLY valid JSON, no additional text):
     // Step 4: Generate PPTX file
     logger.info("Generating PPTX file");
     const pptxBuffer = await generatePPTX(presentationData, { theme });
+    await verifyPPTXIntegrity(
+      pptxBuffer,
+      presentationData.slides.length + 1,
+    );
 
     // Step 5: Upload to R2
     const filename = `${presentationData.title.replace(/[^a-z0-9]/gi, "_")}_${Date.now()}.pptx`;
@@ -305,6 +394,7 @@ REQUIRED JSON FORMAT (return ONLY valid JSON, no additional text):
         slideCount: presentationData.slides.length + 1, // +1 for title slide
         theme,
         size: pptxBuffer.length,
+        preferredLayouts,
         ragEnabled: useRAG,
         ragChunksUsed: ragResultsCount,
         ragSourcesUsed: ragSources.size,

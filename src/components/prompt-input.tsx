@@ -60,6 +60,7 @@ import { Label } from "ui/label";
 import { useFileUpload } from "@/hooks/use-presigned-upload";
 import { toast } from "sonner";
 import { generateUUID, cn } from "@/lib/utils";
+import { Checkbox } from "ui/checkbox";
 
 import { EMOJI_DATA } from "lib/const";
 import { AgentSummary } from "app-types/agent";
@@ -69,6 +70,47 @@ import {
   PPTXGenerationProgressDialog,
   type PPTXGenerationProgress,
 } from "./pptx-generation-progress-dialog";
+
+const PPTX_LAYOUT_OPTIONS = [
+  {
+    value: "section-break",
+    label: "Section Break",
+    description: "Reframe or introduce a new section.",
+  },
+  {
+    value: "bullets",
+    label: "Bullets",
+    description: "Core narrative with concise bullets.",
+  },
+  {
+    value: "two-column",
+    label: "Two Column",
+    description: "Compare processes, pros/cons, or view shifts.",
+  },
+  {
+    value: "kpi-grid",
+    label: "KPI Grid",
+    description: "Showcase up to three metrics with context.",
+  },
+  {
+    value: "quote",
+    label: "Quote",
+    description: "Highlight testimonials or executive POV.",
+  },
+  {
+    value: "comparison",
+    label: "Comparison",
+    description: "Side-by-side evaluation of three options.",
+  },
+  {
+    value: "timeline",
+    label: "Timeline",
+    description: "Roadmap milestones with dates and actions.",
+  },
+] as const;
+
+type PptxLayoutValue =
+  (typeof PPTX_LAYOUT_OPTIONS)[number]["value"];
 
 interface PromptInputProps {
   placeholder?: string;
@@ -115,6 +157,9 @@ export default function PromptInput({
   const [isPPTXDialogOpen, setIsPPTXDialogOpen] = useState(false);
   const [pptxPrompt, setPptxPrompt] = useState("");
   const [pptxSlideCount, setPptxSlideCount] = useState(10);
+  const [preferredLayouts, setPreferredLayouts] = useState<PptxLayoutValue[]>(
+    () => PPTX_LAYOUT_OPTIONS.map((option) => option.value),
+  );
   const [isGeneratingPPTX, setIsGeneratingPPTX] = useState(false);
   const [pptxProgress, setPptxProgress] = useState<PPTXGenerationProgress>({
     stage: "searching",
@@ -408,8 +453,24 @@ export default function PromptInput({
     [threadId, editorRef],
   );
 
+  const toggleLayout = useCallback((value: PptxLayoutValue) => {
+    setPreferredLayouts((prev) => {
+      if (prev.includes(value)) {
+        if (prev.length === 1) {
+          return prev;
+        }
+        return prev.filter((item) => item !== value);
+      }
+      return [...prev, value];
+    });
+  }, []);
+
   const handleGeneratePPTX = useCallback(async () => {
     if (!threadId || !pptxPrompt.trim()) return;
+    if (preferredLayouts.length === 0) {
+      toast.error("Select at least one slide layout.");
+      return;
+    }
 
     setIsGeneratingPPTX(true);
     setIsPPTXDialogOpen(false);
@@ -455,6 +516,7 @@ export default function PromptInput({
           theme: "healthrise",
           maxSlides: pptxSlideCount,
           chatContext,
+          preferredLayouts,
         }),
       });
 
@@ -1042,6 +1104,39 @@ export default function PromptInput({
                 disabled={isGeneratingPPTX}
               />
             </div>
+            <div className="grid gap-2">
+              <Label>Preferred Slide Layouts</Label>
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                {PPTX_LAYOUT_OPTIONS.map((option) => {
+                  const checked = preferredLayouts.includes(option.value);
+                  return (
+                    <label
+                      key={option.value}
+                      className={cn(
+                        "flex items-start gap-2 rounded-md border border-input px-3 py-2 transition",
+                        checked ? "border-primary/80 bg-primary/5" : "hover:border-primary/60",
+                      )}
+                    >
+                      <Checkbox
+                        className="mt-0.5"
+                        checked={checked}
+                        disabled={isGeneratingPPTX}
+                        onCheckedChange={() => toggleLayout(option.value)}
+                      />
+                      <div>
+                        <p className="text-sm font-medium leading-none text-foreground">
+                          {option.label}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{option.description}</p>
+                      </div>
+                    </label>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Select at least one layout to steer how slides are composed.
+              </p>
+            </div>
             <div className="text-sm text-muted-foreground">
               The AI will search your uploaded documents for relevant content
               and create a presentation with {pptxSlideCount} content slides.
@@ -1057,7 +1152,9 @@ export default function PromptInput({
             </Button>
             <Button
               onClick={handleGeneratePPTX}
-              disabled={!pptxPrompt.trim() || isGeneratingPPTX}
+              disabled={
+                !pptxPrompt.trim() || isGeneratingPPTX || preferredLayouts.length === 0
+              }
             >
               {isGeneratingPPTX ? (
                 <>
