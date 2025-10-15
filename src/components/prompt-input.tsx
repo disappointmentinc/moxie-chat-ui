@@ -114,6 +114,7 @@ export default function PromptInput({
   const [isUploadDropdownOpen, setIsUploadDropdownOpen] = useState(false);
   const [isPPTXDialogOpen, setIsPPTXDialogOpen] = useState(false);
   const [pptxPrompt, setPptxPrompt] = useState("");
+  const [pptxSlideCount, setPptxSlideCount] = useState(10);
   const [isGeneratingPPTX, setIsGeneratingPPTX] = useState(false);
   const [pptxProgress, setPptxProgress] = useState<PPTXGenerationProgress>({
     stage: "searching",
@@ -452,7 +453,7 @@ export default function PromptInput({
           prompt: pptxPrompt,
           useRAG: true,
           theme: "healthrise",
-          maxSlides: 20,
+          maxSlides: pptxSlideCount,
           chatContext,
         }),
       });
@@ -1029,9 +1030,21 @@ export default function PromptInput({
                 autoFocus
               />
             </div>
+            <div className="grid gap-2">
+              <Label htmlFor="pptx-slide-count">Number of Slides</Label>
+              <Input
+                id="pptx-slide-count"
+                type="number"
+                min="3"
+                max="30"
+                value={pptxSlideCount}
+                onChange={(e) => setPptxSlideCount(Number.parseInt(e.target.value) || 10)}
+                disabled={isGeneratingPPTX}
+              />
+            </div>
             <div className="text-sm text-muted-foreground">
               The AI will search your uploaded documents for relevant content
-              and create a presentation with up to 20 slides.
+              and create a presentation with {pptxSlideCount} content slides.
             </div>
           </div>
           <DialogFooter>

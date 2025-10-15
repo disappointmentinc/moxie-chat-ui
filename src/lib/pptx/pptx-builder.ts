@@ -3,7 +3,7 @@ import "server-only";
 import pptxgen from "pptxgenjs";
 import logger from "logger";
 import path from "path";
-import { generatePPTXFromTemplate } from "./pptx-template-builder";
+import { generatePPTXFromTemplate } from "./pptx-template-builder-v2";
 
 export interface PresentationSlide {
   title: string;

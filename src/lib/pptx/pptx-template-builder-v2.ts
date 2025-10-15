@@ -19,7 +19,7 @@ interface SlideRelationship {
 
 /**
  * Generate a PPTX file using the template__Comp.pptx as a base
- * This preserves all template styling, master layouts, and theme
+ * This preserves all template styling, master layouts, and theme including logo
  */
 export async function generatePPTXFromTemplate(
   data: PresentationData,
@@ -33,7 +33,7 @@ export async function generatePPTXFromTemplate(
     const templateBuffer = await fs.readFile(TEMPLATE_PATH);
     const zip = await JSZip.loadAsync(templateBuffer);
 
-    // Step 2: Parse presentation.xml to understand structure
+    // Step 2: Parse presentation.xml
     const presentationXml = await zip.file("ppt/presentation.xml")?.async("string");
     if (!presentationXml) {
       throw new Error("presentation.xml not found in template");
@@ -41,7 +41,7 @@ export async function generatePPTXFromTemplate(
 
     const presentation = await parseStringPromise(presentationXml);
 
-    // Step 3: Parse presentation relationships to find existing slides
+    // Step 3: Parse presentation relationships
     const presRelsXml = await zip
       .file("ppt/_rels/presentation.xml.rels")
       ?.async("string");
@@ -63,11 +63,10 @@ export async function generatePPTXFromTemplate(
     logger.info(`Template has ${slideRels.length} existing slides - will clean and rebuild`);
 
     // Step 4: Determine which slides to use
-    // slide1 = title slide, slide2 = content template
     const titleSlideFile = "ppt/slides/slide1.xml";
     const contentTemplateFile = "ppt/slides/slide2.xml";
 
-    // Step 5: Remove all slides except slide1 and slide2 from the template
+    // Step 5: Remove all slides except slide1 and slide2
     const slidesToRemove = slideRels
       .filter((rel) => {
         const slideNum = Number.parseInt(rel.$.Target.match(/slide(\d+)\.xml/)?.[1] || "0");
@@ -78,16 +77,13 @@ export async function generatePPTXFromTemplate(
       const slideFile = `ppt/${rel.$.Target}`;
       zip.remove(slideFile);
 
-      // Remove relationship file
       const slideNum = rel.$.Target.match(/slide(\d+)\.xml/)?.[1];
       if (slideNum) {
         zip.remove(`ppt/slides/_rels/slide${slideNum}.xml.rels`);
       }
-
-      logger.info(`Removed ${slideFile} from template`);
     }
 
-    // Remove the slide relationships for deleted slides
+    // Keep only relationships for slide1 and slide2
     const keepRels = relationships.filter((rel) => {
       if (!rel.$.Type.includes("slide") || rel.$.Type.includes("slideMaster") || rel.$.Type.includes("slideLayout")) {
         return true;
@@ -96,15 +92,13 @@ export async function generatePPTXFromTemplate(
       return slideNum <= 2;
     });
 
-    // Clear and rebuild relationships
     presRels.Relationships.Relationship = keepRels;
 
-    // Step 6: Modify the title slide
+    // Step 6: Modify the title slide (leave logo intact - just update title)
     await modifyTitleSlide(zip, titleSlideFile, data.title, data.subtitle);
 
     // Step 7: Clone content slide for each data slide (starting at slide3)
     const startSlideNumber = 3;
-    // Find the highest relationship ID to ensure unique IDs
     const maxRid = keepRels.reduce((max, rel) => {
       const ridNum = Number.parseInt(rel.$.Id.replace("rId", "")) || 0;
       return Math.max(max, ridNum);
@@ -153,23 +147,22 @@ export async function generatePPTXFromTemplate(
       const slideNumber = startSlideNumber + i;
       const newSlideId = {
         $: {
-          id: `${256 + slideNumber}`, // PowerPoint slide IDs start at 256
+          id: `${256 + slideNumber}`,
           "r:id": `rId${maxRid + 1 + i}`,
         },
       };
       slideIdList["p:sldId"].push(newSlideId);
     }
 
-    // Step 8: Write updated presentation.xml back to zip
+    // Step 9: Write updated XML back to zip
     const builder = new Builder();
     const updatedPresentationXml = builder.buildObject(presentation);
     zip.file("ppt/presentation.xml", updatedPresentationXml);
 
-    // Step 9: Write updated relationships back to zip
     const updatedPresRelsXml = builder.buildObject(presRels);
     zip.file("ppt/_rels/presentation.xml.rels", updatedPresRelsXml);
 
-    // Step 10: Update [Content_Types].xml to include new slides
+    // Step 10: Update [Content_Types].xml
     await updateContentTypes(zip, startSlideNumber, data.slides.length);
 
     // Step 11: Generate final PPTX buffer
@@ -193,7 +186,7 @@ export async function generatePPTXFromTemplate(
 }
 
 /**
- * Modify the title slide with new title and subtitle
+ * Modify the title slide - only update text in TextBox placeholders, leave logo intact
  */
 async function modifyTitleSlide(
   zip: JSZip,
@@ -203,24 +196,23 @@ async function modifyTitleSlide(
 ): Promise<void> {
   const slideXml = await zip.file(slideFile)?.async("string");
   if (!slideXml) {
-    logger.warn(`Title slide ${slideFile} not found, skipping title modification`);
+    logger.warn(`Title slide ${slideFile} not found`);
     return;
   }
 
   const slide = await parseStringPromise(slideXml);
-
-  // Find text placeholders in the slide
-  // PowerPoint slides have text in p:sp > p:txBody > a:p > a:r > a:t
   const shapes = slide["p:sld"]["p:cSld"][0]["p:spTree"][0]["p:sp"] || [];
 
-  // Update title (usually first text shape)
-  if (shapes.length > 0 && shapes[0]["p:txBody"]) {
-    updateTextInShape(shapes[0], title);
-  }
+  // Find the title placeholder (usually has <p:ph type="title"/>)
+  for (const shape of shapes) {
+    const nvPr = shape["p:nvSpPr"]?.[0]?.["p:nvPr"]?.[0];
+    const ph = nvPr?.["p:ph"]?.[0];
 
-  // Update subtitle if provided (usually second text shape)
-  if (subtitle && shapes.length > 1 && shapes[1]["p:txBody"]) {
-    updateTextInShape(shapes[1], subtitle);
+    if (ph && ph.$.type === "title" && shape["p:txBody"]) {
+      // Update title text
+      updateTextInTextBox(shape, title);
+      break;
+    }
   }
 
   const builder = new Builder();
@@ -245,55 +237,60 @@ async function cloneAndModifyContentSlide(
   }
 
   const slide = await parseStringPromise(templateXml);
-
-  // Find text placeholders
   const shapes = slide["p:sld"]["p:cSld"][0]["p:spTree"][0]["p:sp"] || [];
 
-  // Update title (first text shape)
-  if (shapes.length > 0 && shapes[0]["p:txBody"]) {
-    updateTextInShape(shapes[0], slideData.title);
+  // Find TextBox 14 (title) and TextBox 13 (content)
+  // Based on template analysis:
+  // - TextBox 14 (id="15") is at y="472311" - TITLE
+  // - TextBox 13 (id="14") is at y="1373010" - CONTENT
+
+  for (const shape of shapes) {
+    const cNvPr = shape["p:nvSpPr"]?.[0]?.["p:cNvPr"]?.[0];
+    const name = cNvPr?.$.name || "";
+
+    // Update title TextBox
+    if (name === "TextBox 14" && shape["p:txBody"]) {
+      updateTextInTextBox(shape, slideData.title);
+    }
+
+    // Update content TextBox
+    if (name === "TextBox 13" && shape["p:txBody"]) {
+      updateBulletListInTextBox(shape, slideData.content);
+    }
   }
 
-  // Update content (second text shape - usually a text box with bullets)
-  if (shapes.length > 1 && shapes[1]["p:txBody"]) {
-    updateBulletListInShape(shapes[1], slideData.content);
-  }
-
-  // Save the modified slide as new file
+  // Save the modified slide
   const builder = new Builder();
   const newSlideXml = builder.buildObject(slide);
   const newSlideFile = `ppt/slides/slide${newSlideNumber}.xml`;
   zip.file(newSlideFile, newSlideXml);
 
-  // Clone and update slide relationships
+  // Clone slide relationships
   await cloneSlideRelationships(
     zip,
     templateSlideFile.replace("slides/", "").replace(".xml", ""),
     `slide${newSlideNumber}`,
   );
 
-  // Add speaker notes if provided
-  if (slideData.notes) {
-    await addSpeakerNotes(zip, newSlideNumber, slideData.notes);
-  }
-
   logger.info(`Cloned and modified slide ${newSlideNumber}`);
 }
 
 /**
- * Update text content in a PowerPoint shape
+ * Update text content in a TextBox shape
  */
-function updateTextInShape(shape: any, text: string): void {
+function updateTextInTextBox(shape: any, text: string): void {
   const txBody = shape["p:txBody"][0];
-  if (!txBody["a:p"]) {
-    txBody["a:p"] = [{}];
-  }
 
-  // Create new text run
+  // Get existing font formatting from template
+  const existingPara = txBody["a:p"]?.[0];
+  const existingRPr = existingPara?.["a:endParaRPr"]?.[0] || existingPara?.["a:pPr"]?.[0]?.["a:defRPr"]?.[0];
+
+  // Create new paragraph with text, preserving template formatting
   txBody["a:p"] = [
     {
       "a:r": [
         {
+          "a:rPr": existingRPr ? [existingRPr] : [],
           "a:t": [text],
         },
       ],
@@ -302,19 +299,34 @@ function updateTextInShape(shape: any, text: string): void {
 }
 
 /**
- * Update bullet list content in a PowerPoint shape
+ * Update bullet list content in a TextBox shape
  */
-function updateBulletListInShape(shape: any, bullets: string[]): void {
+function updateBulletListInTextBox(shape: any, bullets: string[]): void {
   const txBody = shape["p:txBody"][0];
 
-  // Create paragraph for each bullet point
-  txBody["a:p"] = bullets.map((bullet) => ({
-    "a:r": [
-      {
-        "a:t": [bullet],
-      },
-    ],
-  }));
+  // Get existing formatting from template
+  const existingPara = txBody["a:p"]?.[0];
+  const existingRPr = existingPara?.["a:endParaRPr"]?.[0];
+  const existingPPr = existingPara?.["a:pPr"]?.[0];
+
+  // Create paragraph for each bullet point, preserving formatting
+  txBody["a:p"] = bullets.map((bullet, index) => {
+    const para: any = {
+      "a:r": [
+        {
+          ...(existingRPr && { "a:rPr": [existingRPr] }),
+          "a:t": [bullet],
+        },
+      ],
+    };
+
+    // Add bullet formatting to paragraphs after the first
+    if (index < bullets.length && existingPPr) {
+      para["a:pPr"] = [existingPPr];
+    }
+
+    return para;
+  });
 }
 
 /**
@@ -329,27 +341,9 @@ async function cloneSlideRelationships(
   const templateRelsXml = await zip.file(templateRelsFile)?.async("string");
 
   if (templateRelsXml) {
-    // Clone the relationships file for the new slide
     const newRelsFile = `ppt/slides/_rels/${newSlideName}.xml.rels`;
     zip.file(newRelsFile, templateRelsXml);
   }
-}
-
-/**
- * Add speaker notes to a slide
- */
-async function addSpeakerNotes(
-  zip: JSZip,
-  slideNumber: number,
-  notes: string,
-): Promise<void> {
-  // PowerPoint notes are stored in ppt/notesSlides/notesSlide{N}.xml
-  // This is a simplified implementation - full implementation would require
-  // cloning notes master and creating proper relationships
-
-  // For now, we'll skip notes implementation to keep it simple
-  // TODO: Implement full notes support in future iteration
-  logger.info(`Notes support not yet implemented for slide ${slideNumber}`);
 }
 
 /**
@@ -367,13 +361,13 @@ async function updateContentTypes(
 
   const contentTypes = await parseStringPromise(contentTypesXml);
 
-  // Remove Override entries for slides > 2 (keep only slide1 and slide2 entries)
+  // Remove Override entries for slides > 2
   if (contentTypes.Types.Override) {
     contentTypes.Types.Override = contentTypes.Types.Override.filter((o: any) => {
       const match = o.$.PartName.match(/\/ppt\/slides\/slide(\d+)\.xml/);
-      if (!match) return true; // Keep non-slide entries
+      if (!match) return true;
       const slideNum = Number.parseInt(match[1]);
-      return slideNum <= 2; // Keep only slide1 and slide2
+      return slideNum <= 2;
     });
   } else {
     contentTypes.Types.Override = [];
