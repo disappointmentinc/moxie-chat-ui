@@ -1,6 +1,7 @@
 import "server-only";
 
 import pptxgen from "pptxgenjs";
+import type { TextProps } from "pptxgenjs";
 import logger from "logger";
 import { generatePPTXFromTemplate } from "./pptx-template-builder-v2";
 
@@ -221,14 +222,26 @@ export async function generatePPTX(
     });
 
     const body = deriveFallbackContent(slideData);
-    slide.addText(body, {
+    const textItems: TextProps[] =
+      body.length > 0
+        ? body.map((line) => ({
+            text: line,
+            options: { bullet: line.trim().length > 0 },
+          }))
+        : [
+            {
+              text: slideData.title,
+              options: { bullet: false },
+            },
+          ];
+
+    slide.addText(textItems, {
       x: 0.6,
       y: 1.2,
       w: 8.8,
       h: 4.5,
       fontSize: 18,
       color: themePalette.text,
-      bullet: true,
       fontFace: "Calibri",
     });
 
