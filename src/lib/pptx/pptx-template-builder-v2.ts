@@ -126,6 +126,23 @@ function isTimelineSlide(data: PresentationSlide): data is TimelineSlide {
   );
 }
 
+function extractGraphicGroup(xml: string, groupName: string): string | null {
+  const pattern = new RegExp(
+    `<p:grpSp>\\s*<p:nvGrpSpPr>\\s*<p:cNvPr[^>]*name="${groupName}"[\\s\\S]*?</p:grpSp>`,
+    "m",
+  );
+  const match = pattern.exec(xml);
+  return match ? match[0] : null;
+}
+
+function replaceGraphicGroup(xml: string, groupName: string, replacement: string): string {
+  const pattern = new RegExp(
+    `<p:grpSp>\\s*<p:nvGrpSpPr>\\s*<p:cNvPr[^>]*name="${groupName}"[\\s\\S]*?</p:grpSp>`,
+    "m",
+  );
+  return xml.replace(pattern, replacement);
+}
+
 const LAYOUT_IMPLEMENTATIONS: Record<SlideLayoutType, LayoutImplementation> = {
   "section-break": {
     populate: (slideXml, slideData, options) => {
@@ -489,7 +506,9 @@ async function updateTitleSlide(zip: JSZip, data: PresentationData): Promise<voi
     throw new Error("Template does not include a title slide");
   }
 
-  const slide = await parseStringPromise(await slideFile.async("string"));
+  const slideXmlString = await slideFile.async("string");
+  const preservedLogoGroup = extractGraphicGroup(slideXmlString, "Graphic 21");
+  const slide = await parseStringPromise(slideXmlString);
   setShapeLines(slide, "Title 1", [
     { text: data.title, style: { color: "FFFFFF", size: 4000, bold: true, align: "left" as const } },
   ]);
@@ -509,7 +528,11 @@ async function updateTitleSlide(zip: JSZip, data: PresentationData): Promise<voi
   softenShapeFill(slide, "Freeform 31", { opacity: 0.25 });
   softenShapeFill(slide, "Freeform 18", { opacity: 0.18 });
 
-  zip.file(slidePath, builder.buildObject(slide));
+  let updatedSlideXml = builder.buildObject(slide);
+  if (preservedLogoGroup) {
+    updatedSlideXml = replaceGraphicGroup(updatedSlideXml, "Graphic 21", preservedLogoGroup);
+  }
+  zip.file(slidePath, updatedSlideXml);
 }
 
 async function resetExistingSlides(
