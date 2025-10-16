@@ -1,7 +1,6 @@
 import "server-only";
 
 import pptxgen from "pptxgenjs";
-import type { TextProps } from "pptxgenjs";
 import logger from "logger";
 import { generatePPTXFromTemplate } from "./pptx-template-builder-v2";
 
@@ -222,7 +221,7 @@ export async function generatePPTX(
     });
 
     const body = deriveFallbackContent(slideData);
-    const textItems: TextProps[] =
+    const textItems =
       body.length > 0
         ? body.map((line) => ({
             text: line,
@@ -235,7 +234,7 @@ export async function generatePPTX(
             },
           ];
 
-    slide.addText(textItems, {
+    slide.addText(textItems as any, {
       x: 0.6,
       y: 1.2,
       w: 8.8,
@@ -269,10 +268,11 @@ export async function generatePPTX(
 }
 
 function deriveFallbackContent(slide: PresentationSlide): string[] {
+  const title = slide.title;
   switch (slide.layout) {
     case "section-break": {
       const section = slide as SectionBreakSlide;
-      const bullets = [];
+      const bullets: string[] = [];
       if (section.description) bullets.push(section.description);
       if (section.highlights) bullets.push(...section.highlights);
       return bullets.length > 0 ? bullets : [slide.title];
@@ -326,7 +326,7 @@ function deriveFallbackContent(slide: PresentationSlide): string[] {
       ];
     }
     default:
-      return [slide.title];
+      return [title];
   }
 }
 
