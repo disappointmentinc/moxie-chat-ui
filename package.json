@@ -28,6 +28,7 @@
     "postinstall": "tsx scripts/postinstall.ts",
     "clean": "tsx scripts/clean.ts",
     "clean:next": "tsx scripts/clean.ts .next",
+    "deploy:clear-caches": "bash scripts/deploy-clear-caches.sh || scripts\\deploy-clear-caches.bat",
     "db:generate": "drizzle-kit generate",
     "db:reset": "drizzle-kit drop && drizzle-kit push",
     "db:push": "drizzle-kit push",
