@@ -97,18 +97,25 @@ export async function POST(request: Request) {
           `Searching RAG with multi-query expansion for: "${prompt}"`,
         );
 
-        // Multi-query expansion: Generate alternative search queries
+        // Multi-query expansion: Generate alternative search queries (reduced for speed)
         const queryVariants = [
           prompt, // Original query
           `Key information about: ${prompt}`, // Information-seeking variant
-          `Data and statistics related to: ${prompt}`, // Data-focused variant
-          `Background and context for: ${prompt}`, // Context variant
         ];
 
-        // Search with all query variants and collect results
-        const allResults = await Promise.all(
-          queryVariants.map((query) => searchDocuments(query, 5)),
-        );
+        // Search with timeout to prevent hanging
+        const searchTimeout = 10000; // 10 seconds max for RAG search
+        const allResults = await Promise.race([
+          Promise.all(
+            queryVariants.map((query) => searchDocuments(query, 5)),
+          ),
+          new Promise<never>((_, reject) =>
+            setTimeout(() => reject(new Error("RAG search timeout")), searchTimeout)
+          ),
+        ]).catch((error) => {
+          logger.warn(`RAG search failed or timed out: ${error.message}`);
+          return [];
+        });
 
         // Flatten and deduplicate results by chunk ID
         const seenChunks = new Set<string>();
@@ -307,7 +314,7 @@ RETURN FORMAT (valid JSON only, no commentary or Markdown):
     let text: string;
     try {
       const result = await generateText({
-        model: openai("gpt-5"), // GPT-5 model for presentation generation
+        model: openai("gpt-4-turbo"), // Fast model for presentation generation
         system: systemPrompt,
         prompt: userPrompt,
         temperature: 0.7,
