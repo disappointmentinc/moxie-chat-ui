@@ -9,12 +9,15 @@ import { fileURLToPath } from "url";
 import type { PresentationData } from "../src/lib/pptx/pptx-builder";
 
 // Shim the "server-only" module so we can import the generator in a CLI environment.
-const originalLoad = Module._load;
-Module._load = function patched(request, parent, isMain) {
-  if (request === "server-only" || request.includes("server-only")) {
+const nodeModule = Module as unknown as {
+  _load: (request: string, parent: NodeModule | null, isMain: boolean) => unknown;
+};
+const originalLoad = nodeModule._load.bind(Module);
+nodeModule._load = function patched(request: string, parent: NodeModule | null, isMain: boolean) {
+  if (request === "server-only" || request?.includes?.("server-only")) {
     return {};
   }
-  return originalLoad.apply(this, arguments as unknown as [string, NodeModule, boolean]);
+  return originalLoad(request, parent, isMain);
 };
 
 async function main() {
