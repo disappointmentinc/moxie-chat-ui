@@ -18,6 +18,11 @@ import type {
   TimelineSlide,
 } from "./pptx-builder";
 import { loadWhiteLogoAsJpeg, clearLogoCache } from "./brand-assets";
+import {
+  LAYOUT_BLUEPRINTS,
+  type LayoutBlueprint,
+  type ShapeTargetDescriptor,
+} from "./layout-blueprints";
 
 const TEMPLATE_PATH = path.join(process.cwd(), ".yak", "template__Comp.pptx");
 
@@ -63,6 +68,19 @@ interface SlidePrototype {
   slideNumber: number;
   slideXml: any;
   relsXml?: any;
+  rawXml: string;
+  placeholders: PlaceholderMap;
+}
+
+interface PlaceholderMap {
+  byType: Record<string, string[]>;
+  byTypeIdx: Record<string, Record<number, string>>;
+}
+
+interface PlaceholderInfo {
+  name: string;
+  placeholderType?: string;
+  placeholderIdx?: number;
 }
 
 interface NotesPrototype {
@@ -74,7 +92,7 @@ interface LayoutImplementation {
   populate: (
     slideXml: any,
     slideData: PresentationSlide,
-    options: { includeFooter: boolean },
+    context: { includeFooter: boolean; prototype: SlidePrototype },
   ) => void;
 }
 
@@ -145,59 +163,59 @@ function replaceGraphicGroup(xml: string, groupName: string, replacement: string
 
 const LAYOUT_IMPLEMENTATIONS: Record<SlideLayoutType, LayoutImplementation> = {
   "section-break": {
-    populate: (slideXml, slideData, options) => {
+    populate: (slideXml, slideData, context) => {
       if (!isSectionBreakSlide(slideData)) {
         throw new Error(`Invalid data for section-break slide: missing required fields`);
       }
-      populateSectionBreakSlide(slideXml, slideData);
+      populateSectionBreakSlide(slideXml, slideData, context);
     },
   },
   bullets: {
-    populate: (slideXml, slideData, options) => {
+    populate: (slideXml, slideData, context) => {
       if (!isBulletSlide(slideData)) {
         throw new Error(`Invalid data for bullets slide: missing title or bullets array`);
       }
-      populateBulletSlide(slideXml, slideData, options);
+      populateBulletSlide(slideXml, slideData, context);
     },
   },
   "two-column": {
-    populate: (slideXml, slideData, options) => {
+    populate: (slideXml, slideData, context) => {
       if (!isTwoColumnSlide(slideData)) {
         throw new Error(`Invalid data for two-column slide: missing title or leftColumn array`);
       }
-      populateTwoColumnSlide(slideXml, slideData, options);
+      populateTwoColumnSlide(slideXml, slideData, context);
     },
   },
   "kpi-grid": {
-    populate: (slideXml, slideData, options) => {
+    populate: (slideXml, slideData, context) => {
       if (!isKpiGridSlide(slideData)) {
         throw new Error(`Invalid data for kpi-grid slide: missing title`);
       }
-      populateKpiGridSlide(slideXml, slideData, options);
+      populateKpiGridSlide(slideXml, slideData, context);
     },
   },
   quote: {
-    populate: (slideXml, slideData, options) => {
+    populate: (slideXml, slideData, context) => {
       if (!isQuoteSlide(slideData)) {
         throw new Error(`Invalid data for quote slide: missing quote text`);
       }
-      populateQuoteSlide(slideXml, slideData, options);
+      populateQuoteSlide(slideXml, slideData, context);
     },
   },
   comparison: {
-    populate: (slideXml, slideData, options) => {
+    populate: (slideXml, slideData, context) => {
       if (!isComparisonSlide(slideData)) {
         throw new Error(`Invalid data for comparison slide: missing title or columns array`);
       }
-      populateComparisonSlide(slideXml, slideData, options);
+      populateComparisonSlide(slideXml, slideData, context);
     },
   },
   timeline: {
-    populate: (slideXml, slideData, options) => {
+    populate: (slideXml, slideData, context) => {
       if (!isTimelineSlide(slideData)) {
         throw new Error(`Invalid data for timeline slide: missing title or milestones array`);
       }
-      populateTimelineSlide(slideXml, slideData, options);
+      populateTimelineSlide(slideXml, slideData, context);
     },
   },
 };
@@ -275,14 +293,24 @@ export async function generatePPTXFromTemplate(
         const slideClone = deepClone(prototype.slideXml);
         const relsClone = prototype.relsXml ? deepClone(prototype.relsXml) : null;
 
-        implementation.populate(slideClone, slideData, { includeFooter });
+        implementation.populate(slideClone, slideData, {
+          includeFooter,
+          prototype,
+        });
 
         if (!includeFooter) {
           clearShapeText(slideClone, "Slide Number Placeholder 47");
         }
 
         const slidePath = `ppt/slides/slide${nextSlideNumber}.xml`;
-        zip.file(slidePath, builder.buildObject(slideClone));
+        let slideXmlString = builder.buildObject(slideClone);
+        if (includeFooter) {
+          const footerGroup = extractGraphicGroup(prototype.rawXml, "Graphic 21");
+          if (footerGroup) {
+            slideXmlString = replaceGraphicGroup(slideXmlString, "Graphic 21", footerGroup);
+          }
+        }
+        zip.file(slidePath, slideXmlString);
 
         const slideRelsPath = `ppt/slides/_rels/slide${nextSlideNumber}.xml.rels`;
         const adjustedRels = adjustSlideRelationships(
@@ -396,16 +424,20 @@ async function loadLayoutPrototypes(
     }
 
     try {
-      const slideXml = await parseStringPromise(await slideFile.async("string"));
+      const slideXmlString = await slideFile.async("string");
+      const slideXml = await parseStringPromise(slideXmlString);
       const relsFile = zip.file(relsPath);
       const relsXml = relsFile
         ? await parseStringPromise(await relsFile.async("string"))
         : undefined;
+      const placeholders = buildPlaceholderMap(slideXml);
 
       prototypes[layout as SlideLayoutType] = {
         slideNumber,
         slideXml,
         relsXml,
+        rawXml: slideXmlString,
+        placeholders,
       };
     } catch (error) {
       logger.error(`Failed to parse template slide ${slideNumber} for layout ${layout}:`, error);
@@ -420,6 +452,59 @@ async function loadLayoutPrototypes(
   }
 
   return prototypes as Record<SlideLayoutType, SlidePrototype>;
+}
+
+function buildPlaceholderMap(slideXml: any): PlaceholderMap {
+  const map: PlaceholderMap = {
+    byType: {},
+    byTypeIdx: {},
+  };
+
+  const spTree = slideXml?.["p:sld"]?.["p:cSld"]?.[0]?.["p:spTree"]?.[0];
+  if (!spTree) {
+    return map;
+  }
+
+  const shapes: PlaceholderInfo[] = [];
+  collectPlaceholderInfo(spTree, shapes);
+
+  shapes.forEach(info => {
+    if (!info.placeholderType) return;
+    const type = info.placeholderType;
+    if (!map.byType[type]) {
+      map.byType[type] = [];
+    }
+    map.byType[type]?.push(info.name);
+
+    if (typeof info.placeholderIdx === "number") {
+      if (!map.byTypeIdx[type]) {
+        map.byTypeIdx[type] = {};
+      }
+      map.byTypeIdx[type]![info.placeholderIdx] = info.name;
+    }
+  });
+
+  return map;
+}
+
+function collectPlaceholderInfo(node: any, acc: PlaceholderInfo[]): void {
+  const shapes = node?.["p:sp"] ?? [];
+  shapes.forEach((shape: any) => {
+    const nvSpPr = shape?.["p:nvSpPr"]?.[0];
+    const cNvPr = nvSpPr?.["p:cNvPr"]?.[0];
+    const name = cNvPr?.$?.name;
+    if (!name) return;
+
+    const placeholder = nvSpPr?.["p:nvPr"]?.[0]?.["p:ph"]?.[0]?.$;
+    const placeholderType = placeholder?.type;
+    const placeholderIdx =
+      placeholder?.idx !== undefined ? Number.parseInt(placeholder.idx, 10) : undefined;
+
+    acc.push({ name, placeholderType, placeholderIdx });
+  });
+
+  const groupShapes = node?.["p:grpSp"] ?? [];
+  groupShapes.forEach((group: any) => collectPlaceholderInfo(group, acc));
 }
 
 async function loadNotesPrototype(zip: JSZip): Promise<NotesPrototype | null> {
@@ -764,21 +849,52 @@ function setNotesText(notesXml: any, notes: string): void {
 function populateSectionBreakSlide(
   slideXml: any,
   slideData: SectionBreakSlide,
+  context: { includeFooter: boolean; prototype: SlidePrototype },
 ): void {
-  setShapeLines(slideXml, "Title 5", [
+  const blueprint = getLayoutBlueprint("section-break");
+  const { prototype } = context;
+  const placeholders = prototype.placeholders;
+
+  const titleShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.title,
+    ["Title 5"],
+  );
+  setShapeLinesSafe(slideXml, titleShape, [
     { text: slideData.title, style: { size: 3400, bold: true, color: "#101D41", align: "left" as const } },
   ]);
 
+  const descriptionShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.description,
+    ["TextBox 7"],
+  );
   if (slideData.description) {
-    setShapeLines(slideXml, "TextBox 7", [
+    setShapeLinesSafe(slideXml, descriptionShape, [
       { text: slideData.description, style: { align: "left" as const, size: 2200 } },
     ]);
   } else {
-    clearShapeText(slideXml, "TextBox 7");
+    clearShapeTextSafe(slideXml, descriptionShape);
   }
 
-  if (slideData.highlights && slideData.highlights.length > 0) {
-    const highlightLines: TextRunInput[] = slideData.highlights.flatMap(
+  const highlightShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.highlights,
+    ["TextBox 8"],
+  );
+  const highlightConstraint = applyListConstraint(
+    slideData.highlights,
+    blueprint.constraints?.highlights?.maxItems,
+  );
+  if (highlightConstraint.truncated) {
+    logTruncation("section-break", "highlights", highlightConstraint.removed);
+  }
+
+  if (highlightConstraint.values.length > 0) {
+    const highlightLines: TextRunInput[] = highlightConstraint.values.flatMap(
       (point, index, array): TextRunInput[] => [
         { text: point, style: { align: "left" as const } },
         ...(index < array.length - 1
@@ -786,9 +902,9 @@ function populateSectionBreakSlide(
           : []),
       ],
     );
-    setShapeLines(slideXml, "TextBox 8", highlightLines);
+    setShapeLinesSafe(slideXml, highlightShape, highlightLines);
   } else {
-    clearShapeText(slideXml, "TextBox 8");
+    clearShapeTextSafe(slideXml, highlightShape);
   }
 
   softenShapeFill(slideXml, "Graphic 37", { opacity: 0.08 });
@@ -797,66 +913,161 @@ function populateSectionBreakSlide(
 function populateBulletSlide(
   slideXml: any,
   slideData: BulletSlide,
-  options: { includeFooter: boolean },
+  context: { includeFooter: boolean; prototype: SlidePrototype },
 ): void {
+  const blueprint = getLayoutBlueprint("bullets");
+  const { includeFooter, prototype } = context;
+  const placeholders = prototype.placeholders;
+
+  const eyebrowShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.eyebrow,
+    ["TextBox 27"],
+  );
   if (slideData.eyebrow) {
-    setShapeLines(slideXml, "TextBox 27", [
+    setShapeLinesSafe(slideXml, eyebrowShape, [
       { text: slideData.eyebrow, style: { align: "left" as const, size: 2000, color: "#2C4A78" } },
     ]);
   } else {
-    clearShapeText(slideXml, "TextBox 27");
+    clearShapeTextSafe(slideXml, eyebrowShape);
   }
 
-  setShapeLines(slideXml, "TextBox 14", [
+  const titleShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.title,
+    ["TextBox 14"],
+  );
+  setShapeLinesSafe(slideXml, titleShape, [
     { text: slideData.title, style: { align: "left" as const, size: 3200, bold: true, color: "#101D41" } },
   ]);
 
-  setShapeLines(
-    slideXml,
-    "TextBox 13",
-    slideData.bullets.map((bullet): TextRunInput => ({ text: bullet, style: { align: "left" as const } })),
+  const bulletConstraint = applyListConstraint(
+    slideData.bullets,
+    blueprint.constraints?.bullets?.maxItems,
   );
-
-  if (slideData.supportingPoints && slideData.supportingPoints.length > 0) {
-    setShapeLines(
-      slideXml,
-      "TextBox 11",
-      slideData.supportingPoints.map((point): TextRunInput => ({ text: point, style: { align: "left" as const } })),
-    );
-  } else {
-    clearShapeText(slideXml, "TextBox 11");
+  if (bulletConstraint.truncated) {
+    logTruncation("bullets", "primary bullets", bulletConstraint.removed);
   }
 
-  if (options.includeFooter) {
+  const bulletBodyShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.body,
+    ["TextBox 13"],
+  );
+  setShapeLinesSafe(
+    slideXml,
+    bulletBodyShape,
+    bulletConstraint.values.map((bullet): TextRunInput => ({ text: bullet, style: { align: "left" as const } })),
+  );
+
+  const supportingConstraint = applyListConstraint(
+    slideData.supportingPoints,
+    blueprint.constraints?.supporting?.maxItems,
+  );
+  if (supportingConstraint.truncated) {
+    logTruncation("bullets", "supporting points", supportingConstraint.removed);
+  }
+
+  const supportingShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.supporting,
+    ["TextBox 11"],
+  );
+  if (supportingConstraint.values.length > 0) {
+    setShapeLinesSafe(
+      slideXml,
+      supportingShape,
+      supportingConstraint.values.map((point): TextRunInput => ({ text: point, style: { align: "left" as const } })),
+    );
+  } else {
+    clearShapeTextSafe(slideXml, supportingShape);
+  }
+
+  const footnoteDescriptors = blueprint.footnoteShapes ?? [];
+  const kickerLeftShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    footnoteDescriptors[0],
+    ["TextBox 4"],
+  );
+  const kickerRightShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    footnoteDescriptors[1],
+    ["TextBox 5"],
+  );
+  const footerFallbacks = [kickerLeftShape, kickerRightShape].filter(Boolean) as string[];
+
+  if (includeFooter) {
     if (slideData.kickerLeft) {
-      setShapeLines(slideXml, "TextBox 4", [
+      setShapeLinesSafe(slideXml, kickerLeftShape, [
         { text: slideData.kickerLeft, style: { align: "left" as const, size: 2000, color: "#2C4A78" } },
       ]);
+    } else {
+      clearShapeTextSafe(slideXml, kickerLeftShape);
     }
     if (slideData.kickerRight) {
-      setShapeLines(slideXml, "TextBox 5", [
+      setShapeLinesSafe(slideXml, kickerRightShape, [
         { text: slideData.kickerRight, style: { align: "right" as const, size: 2000, color: "#2C4A78" } },
       ]);
+    } else {
+      clearShapeTextSafe(slideXml, kickerRightShape);
     }
   } else {
-    stripFooterDecorations(slideXml);
+    stripFooterDecorations(slideXml, placeholders, footerFallbacks);
   }
 }
 
 function populateTwoColumnSlide(
   slideXml: any,
   slideData: TwoColumnSlide,
-  options: { includeFooter: boolean },
+  context: { includeFooter: boolean; prototype: SlidePrototype },
 ): void {
-  setShapeLines(slideXml, "TextBox 14", [
+  const blueprint = getLayoutBlueprint("two-column");
+  const { includeFooter, prototype } = context;
+  const placeholders = prototype.placeholders;
+
+  const titleShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.title,
+    ["TextBox 14"],
+  );
+  setShapeLinesSafe(slideXml, titleShape, [
     { text: slideData.title, style: { align: "left" as const, size: 3200, bold: true, color: "#101D41" } },
   ]);
 
-  setShapeLines(
-    slideXml,
-    "TextBox 13",
-    slideData.leftColumn.map((item): TextRunInput => ({ text: item, style: { align: "left" as const } })),
+  const leftConstraint = applyListConstraint(
+    slideData.leftColumn,
+    blueprint.constraints?.leftColumn?.maxItems,
   );
+  if (leftConstraint.truncated) {
+    logTruncation("two-column", "left column", leftConstraint.removed);
+  }
+
+  const leftShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.leftColumn,
+    ["TextBox 13"],
+  );
+  setShapeLinesSafe(
+    slideXml,
+    leftShape,
+    leftConstraint.values.map((item): TextRunInput => ({ text: item, style: { align: "left" as const } })),
+  );
+
+  const rightConstraint = applyListConstraint(
+    slideData.rightColumn,
+    blueprint.constraints?.rightColumn?.maxItems,
+  );
+  if (rightConstraint.truncated) {
+    logTruncation("two-column", "right column", rightConstraint.removed);
+  }
 
   const rightLines: TextRunInput[] = [];
   if (slideData.rightTitle) {
@@ -864,46 +1075,95 @@ function populateTwoColumnSlide(
     rightLines.push({ text: " ", style: { bullet: false } });
   }
   rightLines.push(
-    ...(slideData.rightColumn ?? []).map((item): TextRunInput => ({ text: item, style: { align: "left" as const } })),
+    ...rightConstraint.values.map((item): TextRunInput => ({ text: item, style: { align: "left" as const } })),
   );
-  setShapeLines(slideXml, "TextBox 11", rightLines);
+  const rightShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.rightColumn,
+    ["TextBox 11"],
+  );
+  setShapeLinesSafe(slideXml, rightShape, rightLines);
 
+  const eyebrowShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.eyebrow,
+    ["TextBox 4"],
+  );
   if (slideData.eyebrow) {
-    setShapeLines(slideXml, "TextBox 4", [
+    setShapeLinesSafe(slideXml, eyebrowShape, [
       { text: slideData.eyebrow, style: { align: "left" as const, size: 2000, color: "#2C4A78" } },
     ]);
-  } else if (!options.includeFooter) {
-    stripFooterDecorations(slideXml);
+  } else {
+    clearShapeTextSafe(slideXml, eyebrowShape);
   }
 
-  if (!options.includeFooter) {
-    stripFooterDecorations(slideXml);
+  const footnoteDescriptors = blueprint.footnoteShapes ?? [];
+  const footerLeftShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    footnoteDescriptors[0],
+    ["TextBox 4"],
+  );
+  const footerRightShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    footnoteDescriptors[1],
+    ["TextBox 5"],
+  );
+  const footerFallbacks = [footerLeftShape, footerRightShape].filter(Boolean) as string[];
+
+  if (!includeFooter) {
+    stripFooterDecorations(slideXml, placeholders, footerFallbacks);
   }
 }
 
 function populateKpiGridSlide(
   slideXml: any,
   slideData: KpiGridSlide,
-  options: { includeFooter: boolean },
+  context: { includeFooter: boolean; prototype: SlidePrototype },
 ): void {
-  setShapeLines(slideXml, "TextBox 14", [
+  const blueprint = getLayoutBlueprint("kpi-grid");
+  const { includeFooter, prototype } = context;
+  const placeholders = prototype.placeholders;
+
+  const titleShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.title,
+    ["TextBox 14"],
+  );
+  setShapeLinesSafe(slideXml, titleShape, [
     { text: slideData.title, style: { align: "left" as const, size: 3200, bold: true, color: "#101D41" } },
   ]);
 
+  const summaryCalloutShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.summaryCallout,
+    ["Rounded Rectangle 35"],
+  );
+  const summaryTextShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.summaryText,
+    ["TextBox 13"],
+  );
   if (slideData.summary) {
-    setShapeLines(slideXml, "Rounded Rectangle 35", [
+    setShapeLinesSafe(slideXml, summaryCalloutShape, [
       { text: slideData.summary, style: { align: "left" as const, size: 2200, color: "#2C4A78" } },
     ]);
-    setShapeLines(slideXml, "TextBox 13", [
+    setShapeLinesSafe(slideXml, summaryTextShape, [
       { text: slideData.summary, style: { align: "left" as const, size: 2200 } },
     ]);
   } else {
-    clearShapeText(slideXml, "Rounded Rectangle 35");
-    clearShapeText(slideXml, "TextBox 13");
+    clearShapeTextSafe(slideXml, summaryCalloutShape);
+    clearShapeTextSafe(slideXml, summaryTextShape);
   }
 
-  const metrics = (slideData.metrics || []).slice(0, 3);
-  const metricShapes = ["TextBox 30", "TextBox 28", "TextBox 26"];
+  const metricShapes = blueprint.metricShapes ?? ["TextBox 30", "TextBox 28", "TextBox 26"];
+  const metrics = (slideData.metrics || []).slice(0, metricShapes.length);
 
   metricShapes.forEach((shapeName, index) => {
     const metric = metrics[index];
@@ -929,142 +1189,270 @@ function populateKpiGridSlide(
     setShapeLines(slideXml, shapeName, metricLines);
   });
 
-  if (slideData.footnotes && slideData.footnotes.length > 0) {
+  const footnoteDescriptors = blueprint.footnoteShapes ?? [];
+  const footerShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    footnoteDescriptors[0],
+    ["TextBox 4"],
+  );
+  const secondaryFooterShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    footnoteDescriptors[1],
+    ["TextBox 5"],
+  );
+  const footerFallbacks = [footerShape, secondaryFooterShape].filter(Boolean) as string[];
+
+  if (slideData.footnotes && slideData.footnotes.length > 0 && includeFooter) {
     const formatted = slideData.footnotes.map((note, idx): TextRunInput => ({
       text: `${idx + 1}. ${note}`,
       style: { align: "left" as const, bullet: false, size: 1800 },
     }));
-    setShapeLines(slideXml, "TextBox 4", formatted);
-    removeShape(slideXml, "TextBox 5");
-  } else if (!options.includeFooter) {
-    stripFooterDecorations(slideXml);
+    setShapeLinesSafe(slideXml, footerShape, formatted);
+    clearShapeTextSafe(slideXml, secondaryFooterShape);
+  } else if (!includeFooter) {
+    stripFooterDecorations(slideXml, placeholders, footerFallbacks);
+  } else {
+    clearShapeTextSafe(slideXml, footerShape);
+    clearShapeTextSafe(slideXml, secondaryFooterShape);
   }
 }
 
 function populateQuoteSlide(
   slideXml: any,
   slideData: QuoteSlide,
-  options: { includeFooter: boolean },
+  context: { includeFooter: boolean; prototype: SlidePrototype },
 ): void {
-  setShapeText(slideXml, "TextBox 1", slideData.title || "");
+  const blueprint = getLayoutBlueprint("quote");
+  const { includeFooter, prototype } = context;
+  const placeholders = prototype.placeholders;
 
+  const titleShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.title,
+    ["TextBox 1"],
+  );
+  setShapeTextSafe(slideXml, titleShape, slideData.title || "");
+
+  const eyebrowShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.eyebrow,
+    ["TextBox 14"],
+  );
   if (slideData.eyebrow) {
-    setShapeText(slideXml, "TextBox 14", slideData.eyebrow);
+    setShapeTextSafe(slideXml, eyebrowShape, slideData.eyebrow);
   } else {
-    clearShapeText(slideXml, "TextBox 14");
+    clearShapeTextSafe(slideXml, eyebrowShape);
   }
 
-  setShapeLines(slideXml, "TextBox 43", wrapQuote(slideData.quote));
+  const quoteShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.quote,
+    ["TextBox 43"],
+  );
+  setShapeLinesSafe(slideXml, quoteShape, wrapQuote(slideData.quote));
 
+  const attributionShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.attribution,
+    ["TextBox 6"],
+  );
   if (slideData.attribution) {
-    setShapeText(slideXml, "TextBox 6", slideData.attribution);
+    setShapeTextSafe(slideXml, attributionShape, slideData.attribution);
   } else {
-    clearShapeText(slideXml, "TextBox 6");
+    clearShapeTextSafe(slideXml, attributionShape);
   }
 
   if (slideData.supportingPoints && slideData.supportingPoints.length > 0) {
-    setShapeLines(slideXml, "TextBox 43", [
+    setShapeLinesSafe(slideXml, quoteShape, [
       ...wrapQuote(slideData.quote),
       "",
       ...slideData.supportingPoints,
     ]);
   }
 
-  if (!options.includeFooter) {
-    clearShapeText(slideXml, "TextBox 4");
-    clearShapeText(slideXml, "TextBox 5");
+  const footnoteDescriptors = blueprint.footnoteShapes ?? [];
+  const footerLeft = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    footnoteDescriptors[0],
+    ["TextBox 4"],
+  );
+  const footerRight = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    footnoteDescriptors[1],
+    ["TextBox 5"],
+  );
+  const footerFallbacks = [footerLeft, footerRight].filter(Boolean) as string[];
+
+  if (!includeFooter) {
+    stripFooterDecorations(slideXml, placeholders, footerFallbacks);
   }
 }
 
 function populateComparisonSlide(
   slideXml: any,
   slideData: ComparisonSlide,
-  options: { includeFooter: boolean },
+  context: { includeFooter: boolean; prototype: SlidePrototype },
 ): void {
-  setShapeText(slideXml, "TextBox 14", slideData.title);
+  const blueprint = getLayoutBlueprint("comparison");
+  const { includeFooter, prototype } = context;
+  const placeholders = prototype.placeholders;
 
+  const titleShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.title,
+    ["TextBox 14"],
+  );
+  setShapeTextSafe(slideXml, titleShape, slideData.title);
+
+  const eyebrowShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.eyebrow,
+    ["TextBox 1"],
+  );
   if (slideData.eyebrow) {
-    setShapeText(slideXml, "TextBox 1", slideData.eyebrow);
+    setShapeTextSafe(slideXml, eyebrowShape, slideData.eyebrow);
   } else {
-    clearShapeText(slideXml, "TextBox 1");
+    clearShapeTextSafe(slideXml, eyebrowShape);
   }
 
+  const summaryShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.summaryText,
+    ["TextBox 13"],
+  );
   if (slideData.summary) {
-    setShapeText(slideXml, "TextBox 13", slideData.summary);
+    setShapeTextSafe(slideXml, summaryShape, slideData.summary);
   } else {
-    clearShapeText(slideXml, "TextBox 13");
+    clearShapeTextSafe(slideXml, summaryShape);
   }
 
+  const summaryCalloutShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.summaryCallout,
+    ["Rounded Rectangle 39"],
+  );
   if (slideData.tableTitle) {
-    setShapeText(slideXml, "Rounded Rectangle 39", slideData.tableTitle);
+    setShapeTextSafe(slideXml, summaryCalloutShape, slideData.tableTitle);
   } else {
-    clearShapeText(slideXml, "Rounded Rectangle 39");
+    clearShapeTextSafe(slideXml, summaryCalloutShape);
   }
 
-  const headingShapes = ["TextBox 31", "TextBox 32", "TextBox 33"];
-  const bodyShapes = ["TextBox 34", "TextBox 35", "TextBox 38"];
+  const headingShapes = blueprint.columnHeadingShapes ?? ["TextBox 31", "TextBox 32", "TextBox 33"];
+  const bodyShapes = blueprint.columnBodyShapes ?? ["TextBox 34", "TextBox 35", "TextBox 38"];
 
   headingShapes.forEach((shapeName, index) => {
     const column = slideData.columns[index];
     if (column) {
-      setShapeText(slideXml, shapeName, column.title);
-      setShapeLines(slideXml, bodyShapes[index], column.bullets);
+      setShapeTextSafe(slideXml, shapeName, column.title);
+      setShapeLinesSafe(slideXml, bodyShapes[index], column.bullets);
     } else {
-      clearShapeText(slideXml, shapeName);
-      clearShapeText(slideXml, bodyShapes[index]);
+      clearShapeTextSafe(slideXml, shapeName);
+      clearShapeTextSafe(slideXml, bodyShapes[index]);
     }
   });
 
-  const footnoteShapes = ["TextBox 45", "TextBox 46", "TextBox 47"];
-  if (slideData.footnotes && options.includeFooter) {
-    footnoteShapes.forEach((shapeName, index) => {
+  const footnoteDescriptors = blueprint.footnoteShapes ?? [];
+  const footnoteNames = footnoteDescriptors
+    .map(descriptor => resolveShapeTarget(slideXml, placeholders, descriptor))
+    .filter(Boolean) as string[];
+
+  if (slideData.footnotes && includeFooter) {
+    footnoteNames.forEach((shapeName, index) => {
       const note = slideData.footnotes?.[index];
       if (note) {
-        setShapeText(slideXml, shapeName, note);
+        setShapeTextSafe(slideXml, shapeName, note);
       } else {
-        clearShapeText(slideXml, shapeName);
+        clearShapeTextSafe(slideXml, shapeName);
       }
     });
   } else {
-    footnoteShapes.forEach((shapeName) => clearShapeText(slideXml, shapeName));
+    footnoteNames.forEach(shapeName => clearShapeTextSafe(slideXml, shapeName));
+    if (!includeFooter) {
+      stripFooterDecorations(slideXml, placeholders, footnoteNames);
+    }
   }
 }
 
 function populateTimelineSlide(
   slideXml: any,
   slideData: TimelineSlide,
-  options: { includeFooter: boolean },
+  context: { includeFooter: boolean; prototype: SlidePrototype },
 ): void {
-  setShapeText(slideXml, "TextBox 5", slideData.title);
+  const blueprint = getLayoutBlueprint("timeline");
+  const { includeFooter, prototype } = context;
+  const placeholders = prototype.placeholders;
+
+  const titleShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.title,
+    ["TextBox 5"],
+  );
+  setShapeTextSafe(slideXml, titleShape, slideData.title);
+
+  const milestoneConstraint = applyObjectListConstraint(
+    slideData.milestones,
+    blueprint.constraints?.milestones?.maxItems,
+  );
+  if (milestoneConstraint.truncated) {
+    logTruncation("timeline", "milestones", milestoneConstraint.removed);
+  }
 
   const milestoneLines = [
     ...(slideData.summary ? [slideData.summary] : []),
-    ...(
-      slideData.milestones.map((milestone) => {
-        const segments = [
-          milestone.date,
-          milestone.title,
-          milestone.description,
-        ].filter(Boolean);
-        return segments.join(" — ");
-      }) || []
-    ),
+    ...milestoneConstraint.values.map((milestone) => {
+      const segments = [
+        milestone.date,
+        milestone.title,
+        milestone.description,
+      ].filter(Boolean);
+      return segments.join(" - ");
+    }),
   ];
 
-  setShapeLines(slideXml, "Text Placeholder 12", milestoneLines);
+  if (milestoneConstraint.truncated) {
+    milestoneLines.push("…");
+  }
 
-  const footerShapes = ["TextBox 49", "TextBox 50"];
-  if (options.includeFooter && slideData.footnotes) {
-    footerShapes.forEach((shapeName, index) => {
+  const bodyShape = resolveShapeTarget(
+    slideXml,
+    placeholders,
+    blueprint.shapes.timelineBody,
+    ["Text Placeholder 12"],
+  );
+  setShapeLinesSafe(slideXml, bodyShape, milestoneLines);
+
+  const footnoteDescriptors = blueprint.footnoteShapes ?? [];
+  const footnoteNames = footnoteDescriptors
+    .map(descriptor => resolveShapeTarget(slideXml, placeholders, descriptor))
+    .filter(Boolean) as string[];
+
+  if (includeFooter && slideData.footnotes) {
+    footnoteNames.forEach((shapeName, index) => {
       const value = slideData.footnotes?.[index];
       if (value) {
-        setShapeText(slideXml, shapeName, value);
+        setShapeTextSafe(slideXml, shapeName, value);
       } else {
-        clearShapeText(slideXml, shapeName);
+        clearShapeTextSafe(slideXml, shapeName);
       }
     });
   } else {
-    footerShapes.forEach((shapeName) => clearShapeText(slideXml, shapeName));
+    footnoteNames.forEach(shapeName => clearShapeTextSafe(slideXml, shapeName));
+    if (!includeFooter) {
+      stripFooterDecorations(slideXml, placeholders, footnoteNames);
+    }
   }
 }
 
@@ -1072,6 +1460,187 @@ function wrapQuote(quote: string): TextRunInput[] {
   const trimmed = quote.trim();
   if (!trimmed) return [""];
   return [`"${trimmed}"`];
+}
+
+const DEFAULT_FOOTER_FALLBACK_SHAPES = ["TextBox 4", "TextBox 5"];
+
+function resolvePlaceholderName(
+  placeholders: PlaceholderMap,
+  fallbackNames: string[],
+  candidates: Array<{ type: string; index?: number }> = [],
+): string | null {
+  for (const candidate of candidates) {
+    if (typeof candidate.index === "number") {
+      const byIdx = placeholders.byTypeIdx[candidate.type]?.[candidate.index];
+      if (byIdx) {
+        return byIdx;
+      }
+    }
+    const byType = placeholders.byType[candidate.type];
+    if (byType && byType.length > 0) {
+      if (typeof candidate.index === "number") {
+        const specific = byType[candidate.index];
+        if (specific) {
+          return specific;
+        }
+      } else {
+        return byType[0];
+      }
+    }
+  }
+
+  for (const name of fallbackNames) {
+    if (name) {
+      return name;
+    }
+  }
+
+  return null;
+}
+
+function getLayoutBlueprint(layout: SlideLayoutType): LayoutBlueprint {
+  return LAYOUT_BLUEPRINTS[layout];
+}
+
+function resolveShapeTarget(
+  slideXml: any,
+  placeholders: PlaceholderMap,
+  descriptor?: ShapeTargetDescriptor,
+  fallbackNames: string[] = [],
+): string | null {
+  const combinedFallbacks = [
+    ...(descriptor?.fallbacks ?? []),
+    ...fallbackNames,
+  ];
+
+  if (descriptor?.name) {
+    return descriptor.name;
+  }
+
+  if (descriptor?.names) {
+    for (const candidate of descriptor.names) {
+      if (candidate && findShapeByName(slideXml, candidate)) {
+        return candidate;
+      }
+    }
+  }
+
+  if (descriptor?.placeholder) {
+    const resolved = resolvePlaceholderName(
+      placeholders,
+      combinedFallbacks,
+      [{ type: descriptor.placeholder.type, index: descriptor.placeholder.index }],
+    );
+    if (resolved) {
+      return resolved;
+    }
+  }
+
+  for (const candidate of descriptor?.fallbacks ?? []) {
+    if (candidate && findShapeByName(slideXml, candidate)) {
+      return candidate;
+    }
+  }
+
+  return resolvePlaceholderName(placeholders, combinedFallbacks);
+}
+
+interface ListConstraintResult<T> {
+  values: T[];
+  truncated: boolean;
+  removed: number;
+}
+
+function applyListConstraint(
+  items: string[] | undefined,
+  maxItems?: number,
+  options: { appendEllipsis?: boolean } = { appendEllipsis: true },
+): ListConstraintResult<string> {
+  if (!items || items.length === 0) {
+    return { values: [], truncated: false, removed: 0 };
+  }
+
+  if (!maxItems || items.length <= maxItems) {
+    return { values: [...items], truncated: false, removed: 0 };
+  }
+
+  const trimmed = items.slice(0, maxItems);
+  if (options.appendEllipsis !== false && trimmed.length > 0) {
+    trimmed[trimmed.length - 1] = `${trimmed[trimmed.length - 1]} …`;
+  }
+
+  return {
+    values: trimmed,
+    truncated: true,
+    removed: items.length - trimmed.length,
+  };
+}
+
+function applyObjectListConstraint<T>(
+  items: T[] | undefined,
+  maxItems?: number,
+): ListConstraintResult<T> {
+  if (!items || items.length === 0) {
+    return { values: [], truncated: false, removed: 0 };
+  }
+
+  if (!maxItems || items.length <= maxItems) {
+    return { values: [...items], truncated: false, removed: 0 };
+  }
+
+  const trimmed = items.slice(0, maxItems);
+  return {
+    values: trimmed,
+    truncated: true,
+    removed: items.length - trimmed.length,
+  };
+}
+
+function logTruncation(
+  layout: SlideLayoutType,
+  contentArea: string,
+  removedCount: number,
+): void {
+  logger.info(
+    `[pptx:${layout}] truncated ${removedCount} item(s) in ${contentArea} to fit template density`,
+  );
+}
+
+function stripFooterDecorations(
+  slideXml: any,
+  placeholders: PlaceholderMap,
+  fallbackNames: string[] = DEFAULT_FOOTER_FALLBACK_SHAPES,
+): void {
+  const targetNames = new Set<string>();
+  ["ftr", "dt", "sldNum"].forEach(type => {
+    placeholders.byType[type]?.forEach(name => targetNames.add(name));
+  });
+  fallbackNames.forEach(name => targetNames.add(name));
+
+  targetNames.forEach(name => clearShapeText(slideXml, name));
+}
+
+function setShapeLinesSafe(
+  slideXml: any,
+  shapeName: string | null | undefined,
+  lines: TextRunInput[],
+): void {
+  if (!shapeName) return;
+  setShapeLines(slideXml, shapeName, lines);
+}
+
+function setShapeTextSafe(
+  slideXml: any,
+  shapeName: string | null | undefined,
+  text: string,
+): void {
+  if (!shapeName) return;
+  setShapeText(slideXml, shapeName, text);
+}
+
+function clearShapeTextSafe(slideXml: any, shapeName: string | null | undefined): void {
+  if (!shapeName) return;
+  clearShapeText(slideXml, shapeName);
 }
 
 function setShapeLines(slideXml: any, shapeName: string, lines: TextRunInput[]): void {
@@ -1185,6 +1754,25 @@ function buildParagraph(basePara: any, input: TextRunInput): any {
     }
   }
 
+  if (!run["a:rPr"][0]) {
+    run["a:rPr"] = [{}];
+  }
+  run["a:rPr"][0]["a:latin"] = [
+    {
+      $: { typeface: "Aptos" },
+    },
+  ];
+  run["a:rPr"][0]["a:ea"] = [
+    {
+      $: { typeface: "Aptos" },
+    },
+  ];
+  run["a:rPr"][0]["a:cs"] = [
+    {
+      $: { typeface: "Aptos" },
+    },
+  ];
+
   paragraph["a:r"] = [run];
 
   if (basePara["a:endParaRPr"]) {
@@ -1291,11 +1879,6 @@ function softenShapeFill(
 /**
  * Removes footer decoration shapes (typically TextBox 4 and TextBox 5)
  */
-function stripFooterDecorations(slideXml: any): void {
-  clearShapeText(slideXml, "TextBox 4");
-  clearShapeText(slideXml, "TextBox 5");
-}
-
 /**
  * Resizes a shape by adjusting its height
  */
@@ -1333,29 +1916,3 @@ function resizeShape(
 /**
  * Completely removes a shape from the slide
  */
-function removeShape(slideXml: any, shapeName: string): void {
-  const spTree =
-    slideXml?.["p:sld"]?.["p:cSld"]?.[0]?.["p:spTree"]?.[0];
-
-  if (!spTree) return;
-
-  // Remove from shapes array
-  if (spTree["p:sp"]) {
-    spTree["p:sp"] = spTree["p:sp"].filter((shape: any) => {
-      const cNvPr = shape?.["p:nvSpPr"]?.[0]?.["p:cNvPr"]?.[0];
-      return cNvPr?.$.name !== shapeName;
-    });
-  }
-
-  // Also check in groups
-  if (spTree["p:grpSp"]) {
-    spTree["p:grpSp"].forEach((group: any) => {
-      if (group["p:sp"]) {
-        group["p:sp"] = group["p:sp"].filter((shape: any) => {
-          const cNvPr = shape?.["p:nvSpPr"]?.[0]?.["p:cNvPr"]?.[0];
-          return cNvPr?.$.name !== shapeName;
-        });
-      }
-    });
-  }
-}
