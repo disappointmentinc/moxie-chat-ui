@@ -131,6 +131,7 @@
     "recharts": "^2.15.4",
     "remark-gfm": "^4.0.1",
     "server-only": "^0.0.1",
+    "sharp": "^0.33.5",
     "shiki": "^3.13.0",
     "sonner": "^2.0.7",
     "swr": "^2.3.6",
