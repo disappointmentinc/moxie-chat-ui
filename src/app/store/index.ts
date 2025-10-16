@@ -7,6 +7,7 @@ import { WorkflowSummary } from "app-types/workflow";
 import { AppDefaultToolkit } from "lib/ai/tools";
 import { AgentSummary } from "app-types/agent";
 import { ArchiveWithItemCount } from "app-types/archive";
+import { PresentationData } from "@/lib/pptx/pptx-builder";
 
 export interface UploadedFile {
   id: string;
@@ -65,6 +66,13 @@ export interface AppState {
       providerOptions?: Record<string, any>;
     };
   };
+  slideEditor: {
+    isOpen: boolean;
+    threadId: string | null;
+    presentation: PresentationData | null;
+    isGenerating: boolean;
+    selectedSlideIndex: number | null;
+  };
   pendingThreadMention?: ChatMention;
 }
 
@@ -108,6 +116,13 @@ const initialState: AppState = {
         model: OPENAI_VOICE["Alloy"],
       },
     },
+  },
+  slideEditor: {
+    isOpen: false,
+    threadId: null,
+    presentation: null,
+    isGenerating: false,
+    selectedSlideIndex: null,
   },
   pendingThreadMention: undefined,
 };

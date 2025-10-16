@@ -17,7 +17,7 @@ import type {
   ComparisonSlide,
   TimelineSlide,
 } from "./pptx-builder";
-import { loadWhiteLogoAsJpeg } from "./brand-assets";
+import { loadWhiteLogoAsJpeg, clearLogoCache } from "./brand-assets";
 
 const TEMPLATE_PATH = path.join(process.cwd(), ".yak", "template__Comp.pptx");
 
@@ -195,6 +195,10 @@ export async function generatePPTXFromTemplate(
     logger.info(
       `Generating PPTX from Healthrise template with ${data.slides.length} content slides`,
     );
+
+    // CRITICAL: Clear logo cache to ensure fresh logo is loaded every time
+    clearLogoCache();
+    logger.info("Cleared logo cache to ensure fresh logo");
 
     // Validate input data
     if (!data.title) {
@@ -450,24 +454,30 @@ async function ensureBrandAssets(
   try {
     const logoBuffer = await loadWhiteLogoAsJpeg(theme);
     if (!logoBuffer) {
+      logger.error("Failed to load logo - PPTX will use template default logo");
       return;
     }
 
     const targetFile = "ppt/media/image2.jpg";
-    const existing = await zip.file(targetFile)?.async("nodebuffer").catch(() => null);
-    if (existing && existing.equals(logoBuffer)) {
-      return;
-    }
 
+    // CRITICAL: Check if logo slot exists in template
     if (!zip.file(targetFile)) {
-      logger.warn(`Expected logo slot ${targetFile} missing in template; skipping replacement.`);
+      logger.error(`Expected logo slot ${targetFile} missing in template; cannot replace logo.`);
       return;
     }
 
+    // ALWAYS replace the logo, don't check if it's the same
+    // This ensures we always use the freshly loaded logo
     zip.file(targetFile, logoBuffer);
-    logger.info(`Updated template logo with ${theme} theme variant.`);
+    logger.info(`Replaced template logo with ${theme} WHITE logo (${logoBuffer.length} bytes)`);
+
+    // Log logo info for debugging
+    const existing = await zip.file(targetFile)?.async("nodebuffer").catch(() => null);
+    if (existing) {
+      logger.info(`Verified logo replacement: ${existing.length} bytes in final PPTX`);
+    }
   } catch (error) {
-    logger.warn(`Failed to refresh template logo with ${theme} theme variant:`, error);
+    logger.error(`CRITICAL: Failed to replace template logo with ${theme} theme variant:`, error);
   }
 }
 

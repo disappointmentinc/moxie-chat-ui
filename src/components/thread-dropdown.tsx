@@ -7,6 +7,7 @@ import {
   ChevronRight,
   Loader,
   PencilLine,
+  Presentation,
   Trash,
   UploadIcon,
 } from "lucide-react";
@@ -131,6 +132,62 @@ export function ThreadDropdown({
       .unwrap();
   };
 
+  const handleOpenSlideEditor = async () => {
+    setOpen(false);
+
+    // Set the slide editor state
+    appStore.getState().mutate({
+      slideEditor: {
+        isOpen: true,
+        threadId,
+        presentation: null,
+        isGenerating: true,
+        selectedSlideIndex: null,
+      },
+    });
+
+    // Generate slides from chat context
+    try {
+      const response = await fetch("/api/slide-editor/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ threadId }),
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to generate slides");
+      }
+
+      const data = await response.json();
+
+      appStore.getState().mutate({
+        slideEditor: {
+          isOpen: true,
+          threadId,
+          presentation: data.presentation,
+          isGenerating: false,
+          selectedSlideIndex: null,
+        },
+      });
+
+      toast.success("Slides generated successfully");
+    } catch (error) {
+      console.error("Error generating slides:", error);
+      toast.error("Failed to generate slides from conversation");
+
+      // Close the editor on error
+      appStore.getState().mutate({
+        slideEditor: {
+          isOpen: false,
+          threadId: null,
+          presentation: null,
+          isGenerating: false,
+          selectedSlideIndex: null,
+        },
+      });
+    }
+  };
+
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>{children}</PopoverTrigger>
@@ -149,6 +206,15 @@ export function ThreadDropdown({
                     <span className="mr-4">{t("Chat.Thread.exportChat")}</span>
                   </div>
                 </ChatExportPopup>
+              </CommandItem>
+              <CommandItem className="cursor-pointer p-0">
+                <div
+                  className="flex items-center gap-2 w-full px-2 py-1 rounded"
+                  onClick={handleOpenSlideEditor}
+                >
+                  <Presentation className="text-foreground" />
+                  <span className="mr-4">Slide Editor</span>
+                </div>
               </CommandItem>
               <CommandItem className="cursor-pointer p-0">
                 <UpdateThreadNameDialog

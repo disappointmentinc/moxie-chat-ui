@@ -43,6 +43,7 @@ import dynamic from "next/dynamic";
 import { useMounted } from "@/hooks/use-mounted";
 import { getStorageManager } from "lib/browser-stroage";
 import { AnimatePresence, motion } from "framer-motion";
+import { SlideEditorPanel } from "./slide-editor/slide-editor-panel";
 
 type Props = {
   threadId: string;
@@ -449,6 +450,7 @@ export default function ChatBot({ threadId, initialMessages }: Props) {
           open={isDeleteThreadPopupOpen}
         />
       </div>
+      <SlideEditorPanel />
     </>
   );
 }
