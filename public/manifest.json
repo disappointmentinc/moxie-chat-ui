@@ -2,7 +2,7 @@
   "id": "healthrise-velocity",
   "name": "Healthrise Velocity 1.7",
   "short_name": "Velocity 1.7",
-  "description": "Healthrise AI-powered conversational platform with advanced RAG capabilities",
+  "description": "beta",
   "start_url": "/",
   "display": "standalone",
   "display_override": ["window-controls-overlay", "standalone"],
