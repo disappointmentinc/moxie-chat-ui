@@ -15,9 +15,9 @@ const cachedLogos: LogoCache = {
 };
 
 const LOGO_CANDIDATES = [
+  path.join(process.cwd(), "public", "Healthrise logo WHITE.webp"),
   path.join(process.cwd(), ".yak", "Healthrise_Logo copy.webp"),
   path.join(process.cwd(), "public", "healthrise-logo.png"),
-  path.join(process.cwd(), "public", "Healthrise logo WHITE.webp"),
 ];
 
 type ThemeType = "healthrise" | "light" | "dark";
@@ -55,8 +55,8 @@ export async function loadWhiteLogoAsJpeg(
     const { default: sharp } = await import("sharp");
     const fileBuffer = await fs.readFile(sourcePath);
 
-    // The logo has dark text, so use white background for all themes
-    const backgroundColor = "#FFFFFF";
+    // Use dark background for white logo (used on title page and footer)
+    const backgroundColor = "#0f1d42";
 
     // Get image metadata to check if it has transparency
     const metadata = await sharp(fileBuffer).metadata();
@@ -74,7 +74,7 @@ export async function loadWhiteLogoAsJpeg(
       .toBuffer();
 
     cachedLogos[theme] = logoBuffer;
-    logger.info(`Loaded ${theme} logo from ${path.relative(process.cwd(), sourcePath)} (${metadata.format} -> JPEG)`);
+    logger.info(`Loaded ${theme} WHITE logo from ${path.relative(process.cwd(), sourcePath)} (${metadata.format} -> JPEG) with dark background`);
     return logoBuffer;
   } catch (error) {
     logger.error(`Failed to normalize logo asset for ${theme} theme:`, error);

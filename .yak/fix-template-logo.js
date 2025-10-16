@@ -14,12 +14,12 @@ async function fixTemplateLogo() {
   const zip = await JSZip.loadAsync(templateBuffer);
 
   console.log('Loading and converting logo to JPEG...');
-  const logoPath = path.join(__dirname, 'Healthrise_Logo copy.webp');
+  const logoPath = path.join(__dirname, '..', 'public', 'Healthrise logo WHITE.webp');
   const logoBuffer = await fs.promises.readFile(logoPath);
 
-  // Convert WebP to JPEG with white background (logo has dark text)
+  // Convert WebP to JPEG with dark background (logo has white text for dark backgrounds)
   const jpegLogoBuffer = await sharp(logoBuffer)
-    .flatten({ background: '#ffffff' })
+    .flatten({ background: '#0f1d42' })
     .jpeg({ quality: 95, progressive: true, force: true })
     .toBuffer();
 
