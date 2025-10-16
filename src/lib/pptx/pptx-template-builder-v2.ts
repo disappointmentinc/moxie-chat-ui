@@ -481,16 +481,16 @@ async function updateTitleSlide(zip: JSZip, data: PresentationData): Promise<voi
 
   const slide = await parseStringPromise(await slideFile.async("string"));
   setShapeLines(slide, "Title 1", [
-    { text: data.title, style: { color: "FFFFFF", size: 4000, bold: true, align: "left" } },
+    { text: data.title, style: { color: "FFFFFF", size: 4000, bold: true, align: "left" as const } },
   ]);
 
   if (data.subtitle) {
     setShapeLines(slide, "TextBox 45", [
-      { text: data.subtitle, style: { color: "FFFFFF", size: 2400, align: "left" } },
+      { text: data.subtitle, style: { color: "FFFFFF", size: 2400, align: "left" as const } },
     ]);
   } else if (data.author) {
     setShapeLines(slide, "TextBox 45", [
-      { text: data.author, style: { color: "FFFFFF", size: 2400, align: "left" } },
+      { text: data.author, style: { color: "FFFFFF", size: 2400, align: "left" as const } },
     ]);
   } else {
     clearShapeText(slide, "TextBox 45");
@@ -717,12 +717,12 @@ function populateSectionBreakSlide(
   slideData: SectionBreakSlide,
 ): void {
   setShapeLines(slideXml, "Title 5", [
-    { text: slideData.title, style: { size: 3400, bold: true, color: "#101D41", align: "left" } },
+    { text: slideData.title, style: { size: 3400, bold: true, color: "#101D41", align: "left" as const } },
   ]);
 
   if (slideData.description) {
     setShapeLines(slideXml, "TextBox 7", [
-      { text: slideData.description, style: { align: "left", size: 2200 } },
+      { text: slideData.description, style: { align: "left" as const, size: 2200 } },
     ]);
   } else {
     clearShapeText(slideXml, "TextBox 7");
@@ -730,10 +730,10 @@ function populateSectionBreakSlide(
 
   if (slideData.highlights && slideData.highlights.length > 0) {
     const highlightLines: TextRunInput[] = slideData.highlights.flatMap(
-      (point, index, array) => [
-        { text: point, style: { align: "left" } },
+      (point, index, array): TextRunInput[] => [
+        { text: point, style: { align: "left" as const } },
         ...(index < array.length - 1
-          ? [{ text: " ", style: { bullet: false } }]
+          ? [{ text: " ", style: { bullet: false } }] as TextRunInput[]
           : []),
       ],
     );
@@ -752,27 +752,27 @@ function populateBulletSlide(
 ): void {
   if (slideData.eyebrow) {
     setShapeLines(slideXml, "TextBox 27", [
-      { text: slideData.eyebrow, style: { align: "left", size: 2000, color: "#2C4A78" } },
+      { text: slideData.eyebrow, style: { align: "left" as const, size: 2000, color: "#2C4A78" } },
     ]);
   } else {
     clearShapeText(slideXml, "TextBox 27");
   }
 
   setShapeLines(slideXml, "TextBox 14", [
-    { text: slideData.title, style: { align: "left", size: 3200, bold: true, color: "#101D41" } },
+    { text: slideData.title, style: { align: "left" as const, size: 3200, bold: true, color: "#101D41" } },
   ]);
 
   setShapeLines(
     slideXml,
     "TextBox 13",
-    slideData.bullets.map((bullet) => ({ text: bullet, style: { align: "left" } })),
+    slideData.bullets.map((bullet): TextRunInput => ({ text: bullet, style: { align: "left" as const } })),
   );
 
   if (slideData.supportingPoints && slideData.supportingPoints.length > 0) {
     setShapeLines(
       slideXml,
       "TextBox 11",
-      slideData.supportingPoints.map((point) => ({ text: point, style: { align: "left" } })),
+      slideData.supportingPoints.map((point): TextRunInput => ({ text: point, style: { align: "left" as const } })),
     );
   } else {
     clearShapeText(slideXml, "TextBox 11");
@@ -781,12 +781,12 @@ function populateBulletSlide(
   if (options.includeFooter) {
     if (slideData.kickerLeft) {
       setShapeLines(slideXml, "TextBox 4", [
-        { text: slideData.kickerLeft, style: { align: "left", size: 2000, color: "#2C4A78" } },
+        { text: slideData.kickerLeft, style: { align: "left" as const, size: 2000, color: "#2C4A78" } },
       ]);
     }
     if (slideData.kickerRight) {
       setShapeLines(slideXml, "TextBox 5", [
-        { text: slideData.kickerRight, style: { align: "right", size: 2000, color: "#2C4A78" } },
+        { text: slideData.kickerRight, style: { align: "right" as const, size: 2000, color: "#2C4A78" } },
       ]);
     }
   } else {
@@ -800,28 +800,28 @@ function populateTwoColumnSlide(
   options: { includeFooter: boolean },
 ): void {
   setShapeLines(slideXml, "TextBox 14", [
-    { text: slideData.title, style: { align: "left", size: 3200, bold: true, color: "#101D41" } },
+    { text: slideData.title, style: { align: "left" as const, size: 3200, bold: true, color: "#101D41" } },
   ]);
 
   setShapeLines(
     slideXml,
     "TextBox 13",
-    slideData.leftColumn.map((item) => ({ text: item, style: { align: "left" } })),
+    slideData.leftColumn.map((item): TextRunInput => ({ text: item, style: { align: "left" as const } })),
   );
 
   const rightLines: TextRunInput[] = [];
   if (slideData.rightTitle) {
-    rightLines.push({ text: slideData.rightTitle, style: { bullet: false, bold: true, size: 2400, align: "left" } });
+    rightLines.push({ text: slideData.rightTitle, style: { bullet: false, bold: true, size: 2400, align: "left" as const } });
     rightLines.push({ text: " ", style: { bullet: false } });
   }
   rightLines.push(
-    ...(slideData.rightColumn ?? []).map((item) => ({ text: item, style: { align: "left" } })),
+    ...(slideData.rightColumn ?? []).map((item): TextRunInput => ({ text: item, style: { align: "left" as const } })),
   );
   setShapeLines(slideXml, "TextBox 11", rightLines);
 
   if (slideData.eyebrow) {
     setShapeLines(slideXml, "TextBox 4", [
-      { text: slideData.eyebrow, style: { align: "left", size: 2000, color: "#2C4A78" } },
+      { text: slideData.eyebrow, style: { align: "left" as const, size: 2000, color: "#2C4A78" } },
     ]);
   } else if (!options.includeFooter) {
     stripFooterDecorations(slideXml);
@@ -838,15 +838,15 @@ function populateKpiGridSlide(
   options: { includeFooter: boolean },
 ): void {
   setShapeLines(slideXml, "TextBox 14", [
-    { text: slideData.title, style: { align: "left", size: 3200, bold: true, color: "#101D41" } },
+    { text: slideData.title, style: { align: "left" as const, size: 3200, bold: true, color: "#101D41" } },
   ]);
 
   if (slideData.summary) {
     setShapeLines(slideXml, "Rounded Rectangle 35", [
-      { text: slideData.summary, style: { align: "left", size: 2200, color: "#2C4A78" } },
+      { text: slideData.summary, style: { align: "left" as const, size: 2200, color: "#2C4A78" } },
     ]);
     setShapeLines(slideXml, "TextBox 13", [
-      { text: slideData.summary, style: { align: "left", size: 2200 } },
+      { text: slideData.summary, style: { align: "left" as const, size: 2200 } },
     ]);
   } else {
     clearShapeText(slideXml, "Rounded Rectangle 35");
@@ -866,24 +866,24 @@ function populateKpiGridSlide(
     resizeShape(slideXml, shapeName, { heightMultiplier: 1.18 });
 
     const metricLines: TextRunInput[] = [
-      { text: metric.value, style: { size: 3200, bold: true, align: "left" } },
-      { text: metric.label, style: { align: "left", size: 2200, color: "#1B425D" } },
+      { text: metric.value, style: { size: 3200, bold: true, align: "left" as const } },
+      { text: metric.label, style: { align: "left" as const, size: 2200, color: "#1B425D" } },
     ];
 
     if (metric.delta) {
-      metricLines.push({ text: `Δ ${metric.delta}`, style: { align: "left", color: "#2C7A4B" } });
+      metricLines.push({ text: `Δ ${metric.delta}`, style: { align: "left" as const, color: "#2C7A4B" } });
     }
     if (metric.description) {
-      metricLines.push({ text: metric.description, style: { align: "left" } });
+      metricLines.push({ text: metric.description, style: { align: "left" as const } });
     }
 
     setShapeLines(slideXml, shapeName, metricLines);
   });
 
   if (slideData.footnotes && slideData.footnotes.length > 0) {
-    const formatted = slideData.footnotes.map((note, idx) => ({
+    const formatted = slideData.footnotes.map((note, idx): TextRunInput => ({
       text: `${idx + 1}. ${note}`,
-      style: { align: "left", bullet: false, size: 1800 },
+      style: { align: "left" as const, bullet: false, size: 1800 },
     }));
     setShapeLines(slideXml, "TextBox 4", formatted);
     removeShape(slideXml, "TextBox 5");
@@ -1019,13 +1019,13 @@ function populateTimelineSlide(
   }
 }
 
-function wrapQuote(quote: string): string[] {
+function wrapQuote(quote: string): TextRunInput[] {
   const trimmed = quote.trim();
   if (!trimmed) return [""];
-  return [`“${trimmed}”`];
+  return [`"${trimmed}"`];
 }
 
-function setShapeLines(slideXml: any, shapeName: string, lines: string[]): void {
+function setShapeLines(slideXml: any, shapeName: string, lines: TextRunInput[]): void {
   const shape = findShapeByName(slideXml, shapeName);
   if (!shape) {
     logger.warn(`Shape "${shapeName}" not found in slide - content will be skipped`);
@@ -1067,17 +1067,73 @@ function clearShapeText(slideXml: any, shapeName: string): void {
   txBody["a:p"] = [buildParagraph(basePara, "")];
 }
 
-function buildParagraph(basePara: any, text: string): any {
+function buildParagraph(basePara: any, input: TextRunInput): any {
   const paragraph: any = {};
 
+  // Extract text and style from input
+  const text = typeof input === "string" ? input : input.text;
+  const style = typeof input === "string" ? undefined : input.style;
+
+  // Set paragraph properties (alignment, bullet, etc.)
   if (basePara["a:pPr"]) {
     paragraph["a:pPr"] = [deepClone(basePara["a:pPr"][0])];
+
+    // Apply alignment if specified
+    if (style?.align) {
+      if (!paragraph["a:pPr"][0]) {
+        paragraph["a:pPr"] = [{}];
+      }
+      paragraph["a:pPr"][0]["$"] = paragraph["a:pPr"][0]["$"] || {};
+      paragraph["a:pPr"][0]["$"]["algn"] = style.align;
+    }
+
+    // Handle bullet setting
+    if (style?.bullet === false) {
+      if (!paragraph["a:pPr"][0]) {
+        paragraph["a:pPr"] = [{}];
+      }
+      paragraph["a:pPr"][0]["a:buNone"] = [{}];
+    }
   }
 
+  // Build the text run
   const run: any = { "a:t": [text] };
 
+  // Apply text run properties (font, size, color, bold)
   if (basePara["a:r"]?.[0]?.["a:rPr"]) {
     run["a:rPr"] = [deepClone(basePara["a:r"][0]["a:rPr"][0])];
+  } else {
+    run["a:rPr"] = [{}];
+  }
+
+  // Apply style properties
+  if (style) {
+    if (!run["a:rPr"][0]) {
+      run["a:rPr"] = [{}];
+    }
+
+    if (style.size) {
+      run["a:rPr"][0]["$"] = run["a:rPr"][0]["$"] || {};
+      run["a:rPr"][0]["$"]["sz"] = style.size.toString();
+    }
+
+    if (style.bold) {
+      run["a:rPr"][0]["$"] = run["a:rPr"][0]["$"] || {};
+      run["a:rPr"][0]["$"]["b"] = "1";
+    }
+
+    if (style.color) {
+      const colorValue = style.color.startsWith("#") ? style.color.slice(1) : style.color;
+      run["a:rPr"][0]["a:solidFill"] = [
+        {
+          "a:srgbClr": [
+            {
+              $: { val: colorValue }
+            }
+          ]
+        }
+      ];
+    }
   }
 
   paragraph["a:r"] = [run];
