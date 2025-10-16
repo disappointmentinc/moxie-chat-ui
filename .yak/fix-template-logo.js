@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import JSZip from 'jszip';
+import sharp from 'sharp';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -12,13 +13,19 @@ async function fixTemplateLogo() {
   const templateBuffer = await fs.promises.readFile(templatePath);
   const zip = await JSZip.loadAsync(templateBuffer);
 
-  console.log('Loading new logo...');
-  const logoPath = path.join(__dirname, '..', 'public', 'healthrise-logo.png');
+  console.log('Loading and converting logo to JPEG...');
+  const logoPath = path.join(__dirname, 'Healthrise_Logo copy.webp');
   const logoBuffer = await fs.promises.readFile(logoPath);
 
+  // Convert WebP to JPEG with white background (logo has dark text)
+  const jpegLogoBuffer = await sharp(logoBuffer)
+    .flatten({ background: '#ffffff' })
+    .jpeg({ quality: 95, progressive: true, force: true })
+    .toBuffer();
+
   console.log('Replacing logo in template...');
-  // Replace the corrupted logo (image2.jpg) with the correct one
-  zip.file('ppt/media/image2.jpg', logoBuffer);
+  // Replace the corrupted logo (image2.jpg) with the correct JPEG
+  zip.file('ppt/media/image2.jpg', jpegLogoBuffer);
 
   console.log('Generating fixed template...');
   const fixedBuffer = await zip.generateAsync({

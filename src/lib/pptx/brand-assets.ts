@@ -14,10 +14,10 @@ const cachedLogos: LogoCache = {
   dark: null,
 };
 
-const WHITE_LOGO_CANDIDATES = [
+const LOGO_CANDIDATES = [
   path.join(process.cwd(), ".yak", "Healthrise_Logo copy.webp"),
-  path.join(process.cwd(), "public", "Healthrise logo WHITE.webp"),
   path.join(process.cwd(), "public", "healthrise-logo.png"),
+  path.join(process.cwd(), "public", "Healthrise logo WHITE.webp"),
 ];
 
 type ThemeType = "healthrise" | "light" | "dark";
@@ -36,7 +36,7 @@ export async function loadWhiteLogoAsJpeg(
   }
 
   let sourcePath: string | null = null;
-  for (const candidate of WHITE_LOGO_CANDIDATES) {
+  for (const candidate of LOGO_CANDIDATES) {
     try {
       await fs.access(candidate);
       sourcePath = candidate;
@@ -47,7 +47,7 @@ export async function loadWhiteLogoAsJpeg(
   }
 
   if (!sourcePath) {
-    logger.warn("White logo asset not found in .yak or public directories.");
+    logger.warn("Logo asset not found in .yak or public directories.");
     return null;
   }
 
@@ -55,18 +55,26 @@ export async function loadWhiteLogoAsJpeg(
     const { default: sharp } = await import("sharp");
     const fileBuffer = await fs.readFile(sourcePath);
 
-    // Select background color based on theme
-    const backgroundColor = theme === "light" ? "#FFFFFF" :
-                           theme === "dark" ? "#000000" :
-                           "#0f1d42";
+    // The logo has dark text, so use white background for all themes
+    const backgroundColor = "#FFFFFF";
 
-    const logoBuffer = await sharp(fileBuffer)
-      .flatten({ background: backgroundColor })
-      .jpeg({ quality: 92, progressive: true })
+    // Get image metadata to check if it has transparency
+    const metadata = await sharp(fileBuffer).metadata();
+
+    let sharpInstance = sharp(fileBuffer);
+
+    // Only flatten if the image has an alpha channel
+    if (metadata.hasAlpha) {
+      sharpInstance = sharpInstance.flatten({ background: backgroundColor });
+    }
+
+    // Convert to JPEG with high quality
+    const logoBuffer = await sharpInstance
+      .jpeg({ quality: 95, progressive: true, force: true })
       .toBuffer();
 
     cachedLogos[theme] = logoBuffer;
-    logger.info(`Loaded ${theme} logo from ${path.relative(process.cwd(), sourcePath)}`);
+    logger.info(`Loaded ${theme} logo from ${path.relative(process.cwd(), sourcePath)} (${metadata.format} -> JPEG)`);
     return logoBuffer;
   } catch (error) {
     logger.error(`Failed to normalize logo asset for ${theme} theme:`, error);
