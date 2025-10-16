@@ -1,6 +1,6 @@
 import JSZip from "jszip";
 import logger from "logger";
-import { loadWhiteLogoAsJpeg } from "./brand-assets";
+import { loadWhiteLogoAsJpeg, clearLogoCache } from "./brand-assets";
 
 const LOGO_TARGET = "ppt/media/image2.jpg";
 const THEME_TARGET = "ppt/theme/theme1.xml";
@@ -41,6 +41,7 @@ async function verifyTheme(zip: JSZip) {
 }
 
 async function verifyLogo(zip: JSZip) {
+  clearLogoCache();
   const expectedLogo = await loadWhiteLogoAsJpeg();
   if (!expectedLogo) {
     logger.warn("Skipped logo integrity check because white logo asset is unavailable.");
