@@ -73,7 +73,10 @@ After deployment:
 1. Generate a test PPTX
 2. Open the title slide
 3. Verify the logo shows: **"HEALTHRISE"** in WHITE text on dark blue background
-4. If you see "A HE LTH ISE" or corrupted text - THE CACHE WAS NOT CLEARED!
+4. Confirm the title slide still inherits layout 2:
+   - Unzip the generated PPTX
+   - Ensure `ppt/slides/_rels/slide1.xml.rels` points to `../slideLayouts/slideLayout2.xml`
+5. If you see "A HE LTH ISE" or the relationship is missing - THE CACHE WAS NOT CLEARED!
 
 ## Emergency Fix
 

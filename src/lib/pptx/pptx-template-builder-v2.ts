@@ -519,16 +519,32 @@ async function resetExistingSlides(
   contentTypes: any,
 ): Promise<void> {
   for (const fileName of Object.keys(zip.files)) {
-    if (/^ppt\/slides\/slide\d+\.xml$/.test(fileName) && fileName !== "ppt/slides/slide1.xml") {
+    if (
+      /^ppt\/slides\/slide\d+\.xml$/.test(fileName) &&
+      fileName !== "ppt/slides/slide1.xml"
+    ) {
       zip.remove(fileName);
+      continue;
     }
-    if (/^ppt\/slides\/_rels\/slide\d+\.xml\.rels$/.test(fileName)) {
+
+    const slideRelsMatch = fileName.match(
+      /^ppt\/slides\/_rels\/slide(\d+)\.xml\.rels$/,
+    );
+    if (slideRelsMatch && slideRelsMatch[1] !== "1") {
       zip.remove(fileName);
+      continue;
     }
-    if (/^ppt\/notesSlides\/notesSlide\d+\.xml$/.test(fileName)) {
+
+    const notesMatch = fileName.match(/^ppt\/notesSlides\/notesSlide(\d+)\.xml$/);
+    if (notesMatch && notesMatch[1] !== "1") {
       zip.remove(fileName);
+      continue;
     }
-    if (/^ppt\/notesSlides\/_rels\/notesSlide\d+\.xml\.rels$/.test(fileName)) {
+
+    const notesRelsMatch = fileName.match(
+      /^ppt\/notesSlides\/_rels\/notesSlide(\d+)\.xml\.rels$/,
+    );
+    if (notesRelsMatch && notesRelsMatch[1] !== "1") {
       zip.remove(fileName);
     }
   }
