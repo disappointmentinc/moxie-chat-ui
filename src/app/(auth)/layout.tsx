@@ -28,7 +28,7 @@ export default async function AuthLayout({
             <h1 className="text-xl font-semibold flex items-center gap-3 animate-in fade-in duration-1000 font-sans">
               <Think />
 
-              <span>Velocity 1.7</span>
+              <span>Velocity 1.9</span>
             </h1>
             <div className="flex-1" />
             <FlipWords
@@ -36,7 +36,7 @@ export default async function AuthLayout({
               className=" mb-4 text-muted-foreground"
             />
             <div className="text-[10px] leading-snug text-muted-foreground mt-2 font-sans">
-              Velocity 1.7
+              Velocity 1.9
             </div>
           </div>
 
